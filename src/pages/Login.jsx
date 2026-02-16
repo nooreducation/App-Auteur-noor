@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Sparkles } from 'lucide-react';
@@ -11,7 +11,17 @@ const Login = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('rememberedEmail');
+        const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
+        if (savedRememberMe && savedEmail) {
+            setEmail(savedEmail);
+            setRememberMe(true);
+        }
+    }, []);
 
     const navigate = useNavigate();
     const { signIn, signUp } = useAuthStore();
@@ -23,14 +33,21 @@ const Login = () => {
             if (isLogin) {
                 const user = await signIn(email, password);
                 if (user) {
+                    if (rememberMe) {
+                        localStorage.setItem('rememberedEmail', email);
+                        localStorage.setItem('rememberMe', 'true');
+                    } else {
+                        localStorage.removeItem('rememberedEmail');
+                        localStorage.removeItem('rememberMe');
+                    }
                     toast.success('Bon retour parmi nous !');
-                    navigate('/');
+                    navigate('/dashboard');
                 }
             } else {
                 const user = await signUp(email, password, { role: email === 'admin@noor.com' ? 'admin' : 'author' });
                 if (user) {
                     toast.success('Compte créé ! Vérifiez vos emails si la confirmation est activée.');
-                    if (isLogin) navigate('/'); // Only navigate if logged in immediately
+                    if (isLogin) navigate('/dashboard'); // Only navigate if logged in immediately
                 }
             }
         } catch (error) {
@@ -120,6 +137,19 @@ const Login = () => {
                                 style={{ paddingLeft: '48px' }}
                             />
                         </div>
+                    </div>
+
+                    <div className="checkbox-container" onClick={() => setRememberMe(!rememberMe)}>
+                        <input
+                            type="checkbox"
+                            className="checkbox-custom"
+                            checked={rememberMe}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                setRememberMe(e.target.checked);
+                            }}
+                        />
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Se souvenir de moi</span>
                     </div>
 
                     <button

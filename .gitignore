@@ -21,4 +21,11 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
+# Local Course Assets
+Cours/
+docs/
+lint_errors.txt
+.gemini/
+.agent/
+

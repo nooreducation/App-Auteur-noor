@@ -8,6 +8,7 @@ const AnimatedLogo = ({ className, size = 40 }) => {
             height={(size * 546.6) / 1022.3}
             viewBox="0 0 1022.3 546.6"
             xmlns="http://www.w3.org/2000/svg"
+            style={{ maxWidth: '100%', height: 'auto' }}
         >
             <defs>
                 <style>{`
