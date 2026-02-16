@@ -30,7 +30,11 @@ import {
     ArrowUp,
     ArrowDown,
     Plus,
-    GripVertical
+    GripVertical,
+    ChevronLeft,
+    ChevronRight,
+    ArrowLeft,
+    Power
 } from 'lucide-react';
 import useCourseStore from '../stores/courseStore';
 import GameMemo from './GameMemo';
@@ -91,6 +95,15 @@ const COMPONENT_CATEGORIES = [
             { id: 'SLIDE_COUNTER', label: 'Compteur de Pages', icon: ListChecks, description: 'Page X / Y' },
             { id: 'INTERACTION_SCORE', label: 'Score Interaction', icon: Activity, description: 'Affiche le score actuel' },
         ]
+    },
+    {
+        id: 'navigation',
+        label: 'Navigation',
+        icon: ArrowRight,
+        components: [
+            { id: 'PREV_BUTTON', label: 'Bouton Précédent', icon: ChevronLeft, description: 'Aller à la diapositive précédente' },
+            { id: 'NEXT_BUTTON', label: 'Bouton Suivant', icon: ChevronRight, description: 'Aller à la diapositive suivante' },
+        ]
     }
 ];
 
@@ -105,7 +118,7 @@ export const ComponentModal = ({ isOpen, onClose, onSelect }) => {
         <div className="modal-overlay" style={{ zIndex: 3000 }} onClick={onClose}>
             <motion.div
                 className="modal-content"
-                style={{ maxWidth: '700px', width: '90%', padding: 0, height: '600px', display: 'flex', flexDirection: 'column' }}
+                style={{ maxWidth: '900px', width: '90%', padding: 0, height: '600px', display: 'flex', flexDirection: 'column' }}
                 onClick={e => e.stopPropagation()}
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -122,15 +135,17 @@ export const ComponentModal = ({ isOpen, onClose, onSelect }) => {
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '0 12px', borderBottom: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '0 12px', borderBottom: '1px solid var(--glass-border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
                     {COMPONENT_CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             style={{
-                                padding: '16px 20px',
+                                padding: '16px 10px',
                                 background: 'transparent',
                                 border: 'none',
+                                flexShrink: 0,
+                                whiteSpace: 'nowrap',
                                 borderBottom: activeTab === cat.id ? '3px solid var(--noor-secondary)' : '3px solid transparent',
                                 color: activeTab === cat.id ? 'white' : 'var(--text-muted)',
                                 cursor: 'pointer',
@@ -192,13 +207,15 @@ export const ComponentModal = ({ isOpen, onClose, onSelect }) => {
     );
 };
 
-export const ComponentRenderer = ({ component, isPreview, columns }) => {
+export const ComponentRenderer = ({ component, isPreview, columns, onNavigate }) => {
     const [selectedOption, setSelectedOption] = useState(null);
     const [isAnswered, setIsAnswered] = useState(false);
     const [userAnswers, setUserAnswers] = useState({});
     const [interactionState, setInteractionState] = useState({});
     const containerRef = useRef(null);
-    const { course, activeSlideIndex, setDraggedItem, activeDraggedItem } = useCourseStore();
+    const { course, activeSlideIndex, setActiveSlideIndex, setDraggedItem, activeDraggedItem } = useCourseStore();
+
+    if (!component) return null;
 
     const handleTrueFalseClick = (val) => {
         if (!isPreview || isAnswered) return;
@@ -313,8 +330,11 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
         switch (component.type) {
             case 'ANIMATED_LOGO':
                 return (
-                    <div style={{ width: 'fit-content', display: 'flex', justifyContent: 'center', padding: '5px' }}>
-                        <AnimatedLogo size={component.size || 40} />
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: component.style?.justifyContent || 'center', padding: '0 5px', overflow: 'hidden' }}>
+                        <AnimatedLogo
+                            size={component.size || 40}
+                            style={{ maxHeight: '100%', maxWidth: '100%', width: 'auto', objectFit: 'contain' }}
+                        />
                     </div>
                 );
 
@@ -322,16 +342,21 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
                 const style = component.style || {};
                 return (
                     <div style={{
-                        padding: '4px 12px',
-                        fontSize: style.fontSize ? `${style.fontSize}px` : '0.9rem',
+                        padding: style.padding ? `${style.padding}px` : '0 8px',
+                        fontSize: style.fontSize ? `${style.fontSize}px` : 'clamp(12px, 2.5cqw, 20px)',
                         fontWeight: style.fontWeight || 800,
                         color: style.color || 'white',
                         fontFamily: style.fontFamily || 'inherit',
-                        textAlign: style.textAlign || 'left',
-                        width: '100%',
-                        whiteSpace: 'nowrap',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden'
+                        maxWidth: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: style.textAlign === 'center' ? 'center' : style.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                        lineHeight: '1.2',
+                        wordBreak: 'break-word',
+                        backgroundColor: style.backgroundColor || 'transparent',
+                        border: style.borderWidth ? `${style.borderWidth}px ${style.borderStyle || 'solid'} ${style.borderColor || 'transparent'}` : 'none',
+                        borderRadius: style.borderRadius ? `${style.borderRadius}px` : '0',
                     }}>
                         {course.title || 'Sans titre'}
                     </div>
@@ -344,16 +369,28 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
                 const current = (activeSlideIndex || 0) + 1;
                 const progression = Math.round((current / total) * 100);
                 return (
-                    <div style={{ flex: 1, minWidth: '120px', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: style.textAlign || 'left' }}>
-                        <div style={{ display: 'flex', justifyContent: style.textAlign === 'center' ? 'center' : style.textAlign === 'right' ? 'flex-end' : 'space-between', alignItems: 'center' }}>
-                            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', flex: 1 }}>
+                    <div style={{
+                        minWidth: '80px',
+                        maxWidth: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center', // Center vertically
+                        flexDirection: 'row', // Keep it row to center vertically
+                        gap: '4px',
+                        padding: style.padding ? `${style.padding}px` : '0',
+                        backgroundColor: style.backgroundColor || 'transparent',
+                        border: style.borderWidth ? `${style.borderWidth}px ${style.borderStyle || 'solid'} ${style.borderColor || 'transparent'}` : 'none',
+                        borderRadius: style.borderRadius ? `${style.borderRadius}px` : '0',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <div style={{ width: '80px', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${progression}%` }}
                                     style={{ height: '100%', background: style.color || 'var(--gradient-primary)', borderRadius: '3px' }}
                                 />
                             </div>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 900, color: style.color || 'var(--noor-secondary)', marginLeft: '10px' }}>{progression}%</span>
+                            <span style={{ fontSize: style.fontSize ? `${Math.max(10, style.fontSize * 0.7)}px` : '0.65rem', fontWeight: 900, color: style.color || 'var(--noor-secondary)', marginLeft: '10px', fontFamily: style.fontFamily }}>{progression}%</span>
                         </div>
                     </div>
                 );
@@ -365,13 +402,20 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
                 const current = (activeSlideIndex || 0) + 1;
                 return (
                     <div style={{
-                        fontSize: style.fontSize ? `${style.fontSize}px` : '0.8rem',
+                        fontSize: style.fontSize ? `${style.fontSize}px` : 'clamp(12px, 2.5cqw, 18px)', // More responsive default
                         fontWeight: style.fontWeight || 800,
                         color: style.color || 'var(--text-muted)',
                         fontFamily: style.fontFamily || 'inherit',
-                        textAlign: style.textAlign || 'left',
-                        width: '100%',
-                        whiteSpace: 'nowrap'
+                        maxWidth: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center', // Center vertically
+                        width: 'fit-content',
+                        lineHeight: '1.2',
+                        padding: style.padding ? `${style.padding}px` : '0',
+                        backgroundColor: style.backgroundColor || 'transparent',
+                        border: style.borderWidth ? `${style.borderWidth}px ${style.borderStyle || 'solid'} ${style.borderColor || 'transparent'}` : 'none',
+                        borderRadius: style.borderRadius ? `${style.borderRadius}px` : '0',
                     }}>
                         <span style={{ color: style.secondaryColor || 'var(--noor-secondary)' }}>{current}</span> / {total}
                     </div>
@@ -429,6 +473,95 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
                                 }}>{component.description}</p>
                         </motion.div>
                     </div>
+                );
+            }
+
+            case 'PREV_BUTTON':
+            case 'NEXT_BUTTON': {
+                const style = component.style || {};
+                const action = component.navigationAction || (component.type === 'PREV_BUTTON' ? 'PREVIOUS' : 'NEXT');
+                const totalSlides = course.slides?.length || 1;
+
+                let isDisabled = false;
+                let defaultLabel = '';
+                let Icon = null;
+                let finalAction = () => { };
+
+                if (isPreview) {
+                    if (action === 'PREVIOUS') {
+                        isDisabled = activeSlideIndex === 0;
+                        defaultLabel = 'Précédent';
+                        Icon = ChevronLeft;
+                        finalAction = () => {
+                            if (activeSlideIndex > 0) {
+                                if (onNavigate) onNavigate(activeSlideIndex - 1);
+                                else setActiveSlideIndex(activeSlideIndex - 1);
+                            }
+                        };
+                    } else if (action === 'NEXT') {
+                        isDisabled = activeSlideIndex === totalSlides - 1;
+                        defaultLabel = 'Suivant';
+                        Icon = ChevronRight;
+                        finalAction = () => {
+                            if (activeSlideIndex < totalSlides - 1) {
+                                if (onNavigate) onNavigate(activeSlideIndex + 1);
+                                else setActiveSlideIndex(activeSlideIndex + 1);
+                            }
+                        };
+                    } else if (action === 'START') {
+                        isDisabled = activeSlideIndex === 0;
+                        defaultLabel = 'Début';
+                        Icon = ArrowLeft;
+                        finalAction = () => {
+                            if (onNavigate) onNavigate(0);
+                            else setActiveSlideIndex(0);
+                        };
+                    } else if (action === 'END') {
+                        isDisabled = activeSlideIndex === totalSlides - 1;
+                        defaultLabel = 'Fin';
+                        Icon = ArrowRight;
+                        finalAction = () => {
+                            if (onNavigate) onNavigate(totalSlides - 1);
+                            else setActiveSlideIndex(totalSlides - 1);
+                        };
+                    }
+                }
+
+                return (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isPreview || isDisabled) return;
+                            finalAction();
+                        }}
+                        disabled={isDisabled && isPreview}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            background: style.backgroundColor || (action === 'NEXT' ? 'var(--noor-secondary)' : 'rgba(255, 255, 255, 0.1)'),
+                            border: style.borderWidth ? `${style.borderWidth}px ${style.borderStyle || 'solid'} ${style.borderColor || 'transparent'}` : `1px solid ${style.borderColor || 'rgba(255, 255, 255, 0.2)'}`,
+                            color: style.color || 'white',
+                            padding: style.padding ? `${style.padding}px` : '8px 16px',
+                            borderRadius: style.borderRadius ? `${style.borderRadius}px` : '8px',
+                            cursor: (isDisabled && isPreview) ? 'not-allowed' : 'pointer',
+                            opacity: (isDisabled && isPreview) ? 0.3 : 1,
+                            fontSize: style.fontSize ? `${style.fontSize}px` : '0.9rem',
+                            fontWeight: style.fontWeight || 600,
+                            fontFamily: style.fontFamily || 'inherit',
+                            transition: 'all 0.2s ease',
+                            width: style.width ? (typeof style.width === 'number' ? `${style.width}px` : style.width) : 'fit-content',
+                            flex: style.flex || 'none',
+                            height: 'fit-content',
+                            whiteSpace: 'nowrap',
+                            minWidth: style.minWidth ? (typeof style.minWidth === 'number' ? `${style.minWidth}px` : style.minWidth) : '100px'
+                        }}
+                    >
+                        {(action === 'PREVIOUS' || action === 'START') && !style.hideIcon && Icon && <Icon size={style.iconSize || 16} />}
+                        {component.label || defaultLabel}
+                        {(action === 'NEXT' || action === 'END') && !style.hideIcon && Icon && <Icon size={style.iconSize || 16} />}
+                    </button>
                 );
             }
 
@@ -735,6 +868,130 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
                             ))}
                         </div>
                         {renderActionButtons()}
+                    </div>
+                );
+            }
+
+            case 'DROPDOWN_TEXT': {
+                const sentences = component.sentences || [];
+                const currentAnswers = userAnswers.answers || {};
+
+                return (
+                    <div style={{ width: '100%', direction: 'rtl', textAlign: 'right', padding: '20px' }}>
+                        {/* Header with blue underline */}
+                        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                            <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', marginBottom: '16px', fontFamily: 'Outfit, sans-serif' }}>
+                                {component.instruction || "أَخْتارُ الْكَلِمَةَ الْمُنَاسِبَةَ لِكُلِّ جُمْلَةٍ :"}
+                            </h3>
+                            <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.05)', position: 'relative' }}>
+                                <div style={{ position: 'absolute', top: 0, right: 0, width: '100%', height: '100%', background: 'rgba(123, 97, 255, 0.3)' }} />
+                                <div style={{ position: 'absolute', top: 0, right: 0, width: '15%', height: '100%', background: 'var(--noor-secondary)' }} />
+                            </div>
+                        </div>
+
+                        {/* Sentences as cards (Clear style like Image 0) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
+                            {sentences.map((sentence, sIdx) => (
+                                <motion.div
+                                    key={sIdx}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: sIdx * 0.1 }}
+                                    style={{
+                                        padding: '28px 40px',
+                                        background: 'rgba(255,255,255,0.03)', // Léger pour le mode sombre mais structure card
+                                        borderRadius: '24px',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: '12px',
+                                        fontSize: '1.4rem',
+                                        lineHeight: '2.2',
+                                        color: '#ecf0f1',
+                                        fontFamily: 'Outfit, sans-serif'
+                                    }}
+                                >
+                                    {(sentence.segments || []).map((segment, segIdx) => {
+                                        const globalIdx = `${sIdx}-${segIdx}`;
+                                        if (segment.type === 'text') {
+                                            return <span key={segIdx}>{segment.content}</span>;
+                                        } else {
+                                            const selected = currentAnswers[globalIdx];
+                                            const isCorrect = isAnswered && selected === segment.correctAnswer;
+                                            const isWrong = isAnswered && selected !== segment.correctAnswer;
+
+                                            return (
+                                                <div key={segIdx} style={{ position: 'relative', display: 'inline-block', margin: '0 4px' }}>
+                                                    <select
+                                                        disabled={isAnswered}
+                                                        value={selected || ''}
+                                                        onChange={(e) => setUserAnswers({
+                                                            answers: { ...currentAnswers, [globalIdx]: e.target.value }
+                                                        })}
+                                                        style={{
+                                                            minWidth: '150px',
+                                                            padding: '8px 24px',
+                                                            borderRadius: '12px',
+                                                            background: isAnswered ? (isCorrect ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 71, 87, 0.15)') : 'rgba(255,255,255,0.05)',
+                                                            border: `2px solid ${isAnswered ? (isCorrect ? '#2ed573' : '#ff4757') : 'rgba(255,255,255,0.1)'}`,
+                                                            color: 'white',
+                                                            fontWeight: 700,
+                                                            fontSize: '1.1rem',
+                                                            cursor: isAnswered ? 'default' : 'pointer',
+                                                            outline: 'none',
+                                                            appearance: 'none',
+                                                            textAlign: 'center',
+                                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                                        }}
+                                                    >
+                                                        <option value="">---</option>
+                                                        {(segment.options || []).map((opt, i) => (
+                                                            <option key={i} value={opt} style={{ background: '#1a1a2e', color: 'white' }}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            );
+                                        }
+                                    })}
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        {/* Action Box with Green Button */}
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <motion.button
+                                whileHover={{ scale: 1.05, y: -2 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                    if (isAnswered) {
+                                        setUserAnswers({});
+                                        setIsAnswered(false);
+                                    } else {
+                                        setIsAnswered(true);
+                                    }
+                                }}
+                                style={{
+                                    background: isAnswered ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #44bd32, #2ecc71)',
+                                    color: 'white',
+                                    padding: '18px 80px',
+                                    borderRadius: '50px',
+                                    border: 'none',
+                                    fontSize: '1.2rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '15px',
+                                    boxShadow: isAnswered ? 'none' : '0 10px 30px rgba(68, 189, 50, 0.4)',
+                                    fontFamily: 'Outfit, sans-serif'
+                                }}
+                            >
+                                {isAnswered ? <RefreshCcw size={22} /> : <CheckCircle2 size={22} />}
+                                {isAnswered ? "إعادة المحاولة" : "تحقق من الإجابة"}
+                            </motion.button>
+                        </div>
                     </div>
                 );
             }
@@ -1433,6 +1690,89 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
                 );
             }
 
+            case 'DRAG_DROP_IMAGE': {
+                const labels = component.draggableLabels || [];
+                const zones = component.dropZones || [];
+                const dropped = userAnswers.dropped || {}; // Map of zoneIndex -> label
+
+                return (
+                    <div style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
+                            <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(123, 97, 255, 0.1)' }}>
+                                <Layers size={18} style={{ color: 'var(--noor-secondary)' }} />
+                            </div>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{component.instruction || "Associez les étiquettes aux images"}</h3>
+                        </div>
+
+                        {/* Réservoir d'étiquettes */}
+                        {!isAnswered && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '32px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed var(--glass-border)' }}>
+                                {labels.filter(label => !Object.values(dropped).includes(label)).map((label, idx) => (
+                                    <motion.div
+                                        key={idx}
+                                        drag={isPreview}
+                                        dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                                        dragElastic={0.1}
+                                        onDragStart={() => setDraggedItem(label)}
+                                        onDragEnd={() => setDraggedItem(null)}
+                                        whileHover={{ y: -2, scale: 1.05 }}
+                                        style={{
+                                            padding: '8px 16px', background: 'var(--noor-secondary)', color: 'white',
+                                            borderRadius: '10px', fontWeight: 800, fontSize: '0.85rem', cursor: 'grab',
+                                            boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+                                        }}
+                                    >
+                                        {label}
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Zones de dépôt */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '20px' }}>
+                            {zones.map((zone, idx) => {
+                                const currentLabel = dropped[idx];
+                                const isCorrect = isAnswered && currentLabel === zone.answer;
+                                const isWrong = isAnswered && currentLabel && currentLabel !== zone.answer;
+
+                                return (
+                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                                        <div style={{ width: '100%', aspectRatio: '1/1', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+                                            <img src={zone.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                        </div>
+                                        <div
+                                            onMouseUp={() => { if (isPreview && activeDraggedItem && !isAnswered) setUserAnswers({ ...userAnswers, dropped: { ...dropped, [idx]: activeDraggedItem } }); }}
+                                            style={{
+                                                width: '100%', minHeight: '44px', borderRadius: '12px',
+                                                background: currentLabel ? (isCorrect ? 'rgba(46, 213, 115, 0.1)' : isWrong ? 'rgba(255, 71, 87, 0.1)' : 'rgba(123, 97, 255, 0.1)') : 'rgba(255,255,255,0.03)',
+                                                border: `2px dashed ${isCorrect ? '#2ed573' : isWrong ? '#ff4757' : (currentLabel ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.1)')}`,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', textAlign: 'center'
+                                            }}
+                                        >
+                                            {currentLabel ? (
+                                                <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: isCorrect ? '#2ed573' : isWrong ? '#ff4757' : 'white' }}>{currentLabel}</span>
+                                                    {!isAnswered && (
+                                                        <X size={12} style={{ position: 'absolute', right: '0', cursor: 'pointer', opacity: 0.5 }} onClick={() => {
+                                                            const newDropped = { ...dropped };
+                                                            delete newDropped[idx];
+                                                            setUserAnswers({ ...userAnswers, dropped: newDropped });
+                                                        }} />
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>...</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {renderActionButtons()}
+                    </div>
+                );
+            }
+
             case 'GAMEMEMO':
                 return <GameMemo component={component} isPreview={isPreview} />;
 
@@ -1456,7 +1796,7 @@ export const ComponentRenderer = ({ component, isPreview, columns }) => {
     );
 };
 
-const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
+const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false, onNavigate }) => {
     const {
         activeBlockIndex,
         setActiveBlockIndex,
@@ -1464,6 +1804,7 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
         setActiveComponentIndex
     } = useCourseStore();
 
+    if (!block) return null;
     const columns = block.style?.columns || 12;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [showStylePanel, setShowStylePanel] = useState(false);
@@ -1474,14 +1815,15 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
 
     const isBlockSelected = !isPreview && activeBlockIndex === blockIndex && activeComponentIndex === null;
 
+    const bStyle = block.style || {};
     const blockStyle = {
-        minHeight: block.style?.minHeight === '100%' ? '100%' : (block.style?.minHeight || 'auto'),
-        height: block.style?.minHeight && block.style.minHeight !== 'auto' ? block.style.minHeight : 'auto',
-        background: block.style?.background || 'rgba(255,255,255,0.01)',
-        border: block.style?.showBorder ? `1px solid ${block.style?.borderColor || 'rgba(123, 97, 255, 0.3)'}` : 'none',
-        borderRadius: block.style?.borderRadius || '24px',
-        padding: typeof block.style?.padding === 'number' ? `${block.style.padding}px` : (block.style?.padding || (isGlobal ? '0' : '24px')),
-        marginTop: typeof block.style?.margin === 'number' ? `${block.style.margin}px` : (isGlobal ? '0' : '16px'),
+        minHeight: bStyle.minHeight === '100%' ? '100%' : (bStyle.minHeight || 'auto'),
+        height: bStyle.minHeight && bStyle.minHeight !== 'auto' ? bStyle.minHeight : 'auto',
+        background: bStyle.background || 'rgba(255,255,255,0.01)',
+        border: bStyle.showBorder ? `1px solid ${bStyle.borderColor || 'rgba(123, 97, 255, 0.3)'}` : 'none',
+        borderRadius: bStyle.borderRadius || '24px',
+        padding: typeof bStyle.padding === 'number' ? `${bStyle.padding}px` : (bStyle.padding || (isGlobal ? '0' : '24px')),
+        marginTop: typeof bStyle.margin === 'number' ? `${bStyle.margin}px` : (isGlobal ? '0' : '16px'),
         overflow: 'visible',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
@@ -1498,8 +1840,12 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
         '--block-columns': columns
     };
 
+    if (!block) {
+        console.warn("BlockItem: block is null");
+        return null;
+    }
     // Support legacy blocks and new multi-component blocks
-    const elements = block.elements || (block.type ? [block] : []);
+    const elements = (block.elements || (block.type ? [block] : [])).filter(Boolean);
 
     return (
         <div
@@ -1520,6 +1866,7 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
                         component={element}
                         isPreview={isPreview}
                         columns={columns}
+                        onNavigate={onNavigate}
                     />
                 ))
             ) : (
@@ -1595,6 +1942,7 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
                                     component={element}
                                     isPreview={isPreview}
                                     columns={columns}
+                                    onNavigate={onNavigate}
                                 />
                             </Reorder.Item>
                         );
@@ -1642,7 +1990,7 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false }) => {
 };
 
 
-const SlideRenderer = ({ slide, isPreview = false, style: customStyle = {}, isGlobal = false }) => {
+const SlideRenderer = ({ slide, isPreview = false, style: customStyle = {}, isGlobal = false, onNavigate }) => {
     const {
         setActiveBlockIndex,
         setActiveComponentIndex,
@@ -1700,7 +2048,7 @@ const SlideRenderer = ({ slide, isPreview = false, style: customStyle = {}, isGl
             }}
         >
             {blocks.map((block, index) => (
-                <BlockItem key={block.id || index} block={block} isPreview={isPreview} blockIndex={index} isGlobal={isGlobal} />
+                <BlockItem key={block.id || index} block={block} isPreview={isPreview} blockIndex={index} isGlobal={isGlobal} onNavigate={onNavigate} />
             ))}
 
             {slide.type === 'REPORT' && (

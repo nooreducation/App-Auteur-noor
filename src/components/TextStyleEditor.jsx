@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Type, Palette, Square } from 'lucide-react';
+import { Type, Palette, Square, Ban, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
 const FONT_FAMILIES = [
     { value: 'Arial, sans-serif', label: 'Arial' },
@@ -116,6 +116,18 @@ const TextStyleEditor = ({ component, onStyleChange }) => {
                             />
                         </div>
 
+                        {/* Text Align */}
+                        <div>
+                            <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                                Alignement
+                            </label>
+                            <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px' }}>
+                                <button onClick={() => handleChange('textAlign', 'left')} style={{ flex: 1, padding: '6px', borderRadius: '6px', background: (!currentStyle.textAlign || currentStyle.textAlign === 'left') ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignLeft size={16} style={{ margin: '0 auto' }} /></button>
+                                <button onClick={() => handleChange('textAlign', 'center')} style={{ flex: 1, padding: '6px', borderRadius: '6px', background: currentStyle.textAlign === 'center' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignCenter size={16} style={{ margin: '0 auto' }} /></button>
+                                <button onClick={() => handleChange('textAlign', 'right')} style={{ flex: 1, padding: '6px', borderRadius: '6px', background: currentStyle.textAlign === 'right' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignRight size={16} style={{ margin: '0 auto' }} /></button>
+                            </div>
+                        </div>
+
                         {/* Text Color */}
                         <div>
                             <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
@@ -203,6 +215,25 @@ const TextStyleEditor = ({ component, onStyleChange }) => {
                                     style={{ flex: 1, padding: '6px 10px', fontFamily: 'monospace', fontSize: '0.7rem' }}
                                     placeholder="transparent"
                                 />
+                                <button
+                                    onClick={() => handleChange('backgroundColor', 'transparent')}
+                                    title="Transparent"
+                                    style={{
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: '1px solid var(--glass-border)',
+                                        borderRadius: '6px',
+                                        background: backgroundColor === 'transparent' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)',
+                                        cursor: 'pointer',
+                                        color: 'white',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <Ban size={16} />
+                                </button>
                             </div>
                         </div>
 

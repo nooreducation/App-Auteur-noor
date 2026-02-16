@@ -9,24 +9,14 @@ const DEFAULT_HEADER = {
         {
             id: 'header-block-0',
             title: 'Contenu En-tête',
-            style: {
-                columns: 12,
-                minHeight: 60,
-                background: 'rgba(18, 21, 45, 0.98)',
-                padding: 10,
-                margin: 0,
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                gap: 20
-            },
+            style: { columns: 12, minHeight: 60, background: 'transparent', padding: 0, margin: 0 },
             elements: [
                 { id: 'logo-main', type: 'ANIMATED_LOGO', size: 35, cellId: 'h-cell-1' },
                 { id: 'title-main', type: 'COURSE_TITLE', cellId: 'h-cell-2' },
                 { id: 'counter-main', type: 'SLIDE_COUNTER', cellId: 'h-cell-3' }
             ]
         }
-    ],
-    style: { padding: 0 }
+    ]
 };
 
 const DEFAULT_FOOTER = {
@@ -36,11 +26,10 @@ const DEFAULT_FOOTER = {
         {
             id: 'footer-block-0',
             title: 'Contenu Pied de page',
-            style: { columns: 12, minHeight: 'auto', background: 'transparent', padding: 10, margin: 0 },
+            style: { columns: 12, minHeight: 'auto', background: 'transparent', padding: 0, margin: 0 },
             elements: []
         }
-    ],
-    style: { padding: 0 }
+    ]
 };
 
 const verifyCourseIntegrity = (courseData) => {
@@ -67,7 +56,36 @@ const verifyCourseIntegrity = (courseData) => {
                 { id: 'h-cell-2', span: 6, alignment: 'center' },
                 { id: 'h-cell-3', span: 3, alignment: 'right' }
             ],
-            isRTL: false
+            isRTL: false,
+            height: 60,
+            background: 'rgba(18, 21, 45, 0.98)',
+            isCard: false,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 10,
+            gap: 4
+        };
+    } else {
+        // Migration of existing fields to the new layout object if they are at the top level
+        if (data.playerConfig.headerHeight && !data.playerConfig.headerLayout.height) {
+            data.playerConfig.headerLayout.height = data.playerConfig.headerHeight;
+        }
+        if (data.playerConfig.headerBackground && !data.playerConfig.headerLayout.background) {
+            data.playerConfig.headerLayout.background = data.playerConfig.headerBackground;
+        }
+        // Ensure defaults for new fields
+        data.playerConfig.headerLayout = {
+            height: 60,
+            background: 'rgba(18, 21, 45, 0.98)',
+            isCard: false,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 10,
+            gap: 4,
+            isRTL: false,
+            ...data.playerConfig.headerLayout
         };
     }
 
@@ -78,7 +96,34 @@ const verifyCourseIntegrity = (courseData) => {
                 { id: 'f-cell-counter', span: 6, alignment: 'center' },
                 { id: 'f-cell-next', span: 3, alignment: 'right' }
             ],
-            isRTL: false
+            isRTL: false,
+            height: 72,
+            background: 'rgba(18, 21, 45, 0.98)',
+            isCard: false,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 10,
+            gap: 4
+        };
+    } else {
+        if (data.playerConfig.footerHeight && !data.playerConfig.footerLayout.height) {
+            data.playerConfig.footerLayout.height = data.playerConfig.footerHeight;
+        }
+        if (data.playerConfig.footerBackground && !data.playerConfig.footerLayout.background) {
+            data.playerConfig.footerLayout.background = data.playerConfig.footerBackground;
+        }
+        data.playerConfig.footerLayout = {
+            height: 72,
+            background: 'rgba(18, 21, 45, 0.98)',
+            isCard: false,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 10,
+            gap: 4,
+            isRTL: false,
+            ...data.playerConfig.footerLayout
         };
     }
 
@@ -515,6 +560,15 @@ const useCourseStore = create(
                 activeSlideIndex: 0
             }),
 
+            updateCourseMetadata: (metadata) => set((state) => ({
+                course: { ...state.course, ...metadata }
+            })),
+
+            setEditingGlobalElement: (element) => set({ activeGlobalElement: element }),
+
+            setCourse: (course) => set({ course }),
+            setPreviewMode: (mode) => set({ isPreviewMode: mode }),
+
             uploadAsset: async (file) => {
                 const { course } = get();
 
@@ -822,6 +876,8 @@ const useCourseStore = create(
                         gridRows: 3
                     } : {}),
                     ...(type === 'ANIMATED_LOGO' ? { size: 40 } : {}),
+                    ...(type === 'PREV_BUTTON' ? { label: 'Précédent' } : {}),
+                    ...(type === 'NEXT_BUTTON' ? { label: 'Suivant' } : {}),
                     cellId
                 };
 
@@ -836,7 +892,7 @@ const useCourseStore = create(
                     };
                 } else {
                     const newSlides = [...state.course.slides];
-                    newSlides[activeSlideIndex] = target;
+                    newSlides[state.activeSlideIndex] = target;
                     return {
                         course: { ...state.course, slides: newSlides },
                         activeComponentIndex: targetBlock.elements.length - 1

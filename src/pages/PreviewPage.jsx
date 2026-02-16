@@ -207,7 +207,6 @@ const PreviewPage = ({ isPlayer = false }) => {
 
     const PlayerHeader = ({ isEmbedded = false }) => {
         if (!playerConfig.showHeader && !isEmbedded) return null;
-        if (!playerConfig.showHeader) return null;
 
         const layout = playerConfig.headerLayout || {
             cells: [
@@ -215,59 +214,82 @@ const PreviewPage = ({ isPlayer = false }) => {
                 { id: 'h-cell-2', span: 6, alignment: 'center' },
                 { id: 'h-cell-3', span: 3, alignment: 'right' }
             ],
-            isRTL: false
+            isRTL: false,
+            height: 60,
+            background: 'rgba(18, 21, 45, 0.98)',
+            isCard: false,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 10
         };
 
-        // Combine all elements from all header blocks for simplicity
         const allHeaderElements = course.header?.blocks?.flatMap(b => b.elements) || [];
 
         return (
-            <header
-                className="responsive-player-header"
+            <div
+                className="responsive-player-header-container"
                 style={{
-                    height: `${playerConfig.headerHeight || 60}px`,
-                    background: playerConfig.headerBackground || 'rgba(18, 21, 45, 0.98)',
-                    backdropFilter: 'blur(20px)',
-                    borderBottom: '1px solid var(--glass-border)',
+                    height: `${layout.height}px`,
+                    padding: layout.isCard ? '8px 16px' : '0',
                     zIndex: 1100,
                     flexShrink: 0,
-                    overflow: 'hidden',
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(12, 1fr)`,
-                    gap: '10px',
-                    direction: layout.isRTL ? 'rtl' : 'ltr'
+                    position: 'relative'
                 }}>
-                {layout.cells.map(cell => (
-                    <div
-                        key={cell.id}
-                        className="header-cell"
-                        style={{
-                            gridColumn: `span ${cell.span}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
-                            height: '100%',
-                            overflow: 'hidden'
-                        }}
-                    >
-                        {allHeaderElements
-                            .filter(el => el.cellId === cell.id)
-                            .map(element => (
-                                <ComponentRenderer
-                                    key={element.id}
-                                    component={element}
-                                    isPreview={true}
-                                />
-                            ))
-                        }
-                    </div>
-                ))}
-            </header>
+                <header
+                    style={{
+                        height: '100%',
+                        background: layout.background,
+                        borderRadius: layout.isCard ? `${layout.borderRadius}px` : '0',
+                        border: `${layout.borderWidth}px solid ${layout.borderColor}`,
+                        boxShadow: layout.isCard ? '0 8px 30px rgba(0,0,0,0.3)' : 'none',
+                        borderLeft: 'none',
+                        borderRight: 'none',
+                        borderTop: 'none',
+                        borderBottom: !layout.isCard ? `${layout.borderWidth}px solid ${layout.borderColor}` : 'none',
+                        backdropFilter: 'blur(20px)',
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(12, 1fr)`,
+                        gap: `${layout.gap ?? 4}px`,
+                        direction: layout.isRTL ? 'rtl' : 'ltr',
+                        padding: `0 ${layout.padding}px`,
+                        overflow: 'hidden'
+                    }}>
+                    {layout.cells.map(cell => (
+                        <div
+                            key={cell.id}
+                            className="header-cell"
+                            style={{
+                                gridColumn: `span ${cell.span}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
+                                height: '100%',
+                                overflow: 'hidden',
+                                minWidth: 0,
+                                containerType: 'inline-size'
+                            }}
+                        >
+                            {allHeaderElements
+                                .filter(el => el.cellId === cell.id)
+                                .map(element => (
+                                    <ComponentRenderer
+                                        key={element.id}
+                                        component={element}
+                                        isPreview={true}
+                                        onNavigate={goToSlide}
+                                    />
+                                ))
+                            }
+                        </div>
+                    ))}
+                </header>
+            </div>
         );
     };
 
     const PlayerFooter = ({ isEmbedded = false }) => {
-        if (!playerConfig.showFooter) return null;
+        if (!playerConfig.showFooter && !isEmbedded) return null;
         const totalSlides = course.slides?.length || 0;
 
         const layout = playerConfig.footerLayout || {
@@ -276,85 +298,82 @@ const PreviewPage = ({ isPlayer = false }) => {
                 { id: 'f-cell-counter', span: 6, alignment: 'center' },
                 { id: 'f-cell-next', span: 3, alignment: 'right' }
             ],
-            isRTL: false
+            isRTL: false,
+            height: 72,
+            background: 'rgba(18, 21, 45, 0.98)',
+            isCard: false,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 10
         };
 
         const allFooterElements = course.footer?.blocks?.flatMap(b => b.elements) || [];
 
         return (
-            <footer
-                className="responsive-player-footer"
+            <div
+                className="responsive-player-footer-container"
                 style={{
-                    height: `${playerConfig.footerHeight || 72}px`,
-                    background: playerConfig.footerBackground || 'rgba(18, 21, 45, 0.98)',
-                    backdropFilter: 'blur(20px)',
-                    borderTop: '1px solid var(--glass-border)',
+                    height: `${layout.height}px`,
+                    padding: layout.isCard ? '8px 16px' : '0',
                     zIndex: 1100,
                     flexShrink: 0,
-                    overflow: 'hidden',
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(12, 1fr)`,
-                    gap: '10px',
-                    direction: layout.isRTL ? 'rtl' : 'ltr'
+                    position: 'relative'
                 }}>
+                <footer
+                    style={{
+                        height: '100%',
+                        background: layout.background,
+                        borderRadius: layout.isCard ? `${layout.borderRadius}px` : '0',
+                        border: `${layout.borderWidth}px solid ${layout.borderColor}`,
+                        boxShadow: layout.isCard ? '0 -8px 30px rgba(0,0,0,0.3)' : 'none',
+                        borderLeft: 'none',
+                        borderRight: 'none',
+                        borderBottom: 'none',
+                        borderTop: !layout.isCard ? `${layout.borderWidth}px solid ${layout.borderColor}` : 'none',
+                        backdropFilter: 'blur(20px)',
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(12, 1fr)`,
+                        gap: `${layout.gap ?? 4}px`,
+                        direction: layout.isRTL ? 'rtl' : 'ltr',
+                        padding: `0 ${layout.padding}px`,
+                        overflow: 'hidden'
+                    }}>
 
-                {layout.cells.map(cell => (
-                    <div
-                        key={cell.id}
-                        className="footer-cell"
-                        style={{
-                            gridColumn: `span ${cell.span}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
-                            height: '100%',
-                            overflow: 'hidden',
-                            gap: '10px'
-                        }}
-                    >
-                        {/* Render navigation buttons only in specific zones or if not handled by elements */}
-                        {/* For simplicity we keep the original nav buttons but we could also make them components */}
-                        {cell.id === 'f-cell-prev' && (
-                            <button
-                                onClick={() => goToSlide(currentSlideIndex - 1)}
-                                disabled={currentSlideIndex === 0}
-                                className="btn-secondary footer-nav-btn"
-                                style={{ opacity: currentSlideIndex === 0 ? 0.3 : 1 }}
-                            >
-                                <ChevronLeft size={16} /> Précédent
-                            </button>
-                        )}
+                    {layout.cells.map(cell => (
+                        <div
+                            key={cell.id}
+                            className="footer-cell"
+                            style={{
+                                gridColumn: `span ${cell.span}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
+                                height: '100%',
+                                overflow: 'hidden',
+                                gap: '8px',
+                                minWidth: 0,
+                                containerType: 'inline-size'
+                            }}
+                        >
+                            {/* Render navigation buttons only in specific zones or if not handled by elements */}
+                            {/* For simplicity we keep the original nav buttons but we could also make them components */}
 
-                        {cell.id === 'f-cell-next' && (
-                            <button
-                                onClick={() => goToSlide(currentSlideIndex + 1)}
-                                disabled={currentSlideIndex === totalSlides - 1}
-                                className="btn-secondary footer-nav-btn"
-                                style={{ opacity: currentSlideIndex === totalSlides - 1 ? 0.3 : 1 }}
-                            >
-                                Suivant <ChevronRight size={16} />
-                            </button>
-                        )}
-
-                        {cell.id === 'f-cell-counter' && (
-                            <div className="footer-counter" style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-muted)' }}>
-                                <span style={{ color: 'var(--noor-secondary)' }}>{currentSlideIndex + 1}</span> / {totalSlides}
-                            </div>
-                        )}
-
-                        {allFooterElements
-                            .filter(el => el.cellId === cell.id)
-                            .map(element => (
-                                <ComponentRenderer
-                                    key={element.id}
-                                    component={element}
-                                    isPreview={true}
-                                />
-                            ))
-                        }
-                    </div>
-                ))}
-            </footer>
+                            {allFooterElements
+                                .filter(el => el.cellId === cell.id)
+                                .map(element => (
+                                    <ComponentRenderer
+                                        key={element.id}
+                                        component={element}
+                                        isPreview={true}
+                                        onNavigate={goToSlide}
+                                    />
+                                ))
+                            }
+                        </div>
+                    ))}
+                </footer>
+            </div>
         );
     };
 
@@ -385,7 +404,7 @@ const PreviewPage = ({ isPlayer = false }) => {
                                 style={{ width: '100%', minHeight: '100%' }}
                             >
                                 <div className="player-card-container">
-                                    {currentSlide && <SlideRenderer slide={currentSlide} isPreview={true} />}
+                                    {currentSlide && <SlideRenderer slide={currentSlide} isPreview={true} onNavigate={goToSlide} />}
                                 </div>
                             </motion.div>
                         </AnimatePresence>
@@ -619,7 +638,7 @@ const PreviewPage = ({ isPlayer = false }) => {
                                     <AnimatePresence mode="wait">
                                         <motion.div key={currentSlideIndex} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ width: '100%', minHeight: '100%', position: 'relative' }}>
                                             <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', minHeight: '100%' }}>
-                                                {currentSlide && <SlideRenderer slide={currentSlide} isPreview={true} />}
+                                                {currentSlide && <SlideRenderer slide={currentSlide} isPreview={true} onNavigate={goToSlide} />}
                                             </div>
                                         </motion.div>
                                     </AnimatePresence>

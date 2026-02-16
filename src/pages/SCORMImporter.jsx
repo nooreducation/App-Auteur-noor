@@ -255,76 +255,169 @@ const SCORMImporter = () => {
             console.log("✅ XML parsé avec succès");
             console.log("📋 Nombre total de modules:", xml.querySelectorAll('*').length);
 
-            // DÉTECTION DE JEU DE MÉMOIRE (GAMEMEMO) → Conversion en composant natif
+            // 1. EXTRACTION DÉTAILLÉE DE LA CONSIGNE
+            const allTextModules = Array.from(xml.querySelectorAll('textModule'));
+
+            // On cherche un module qui ne CONTIENT PAS de trous {{}} pour servir de consigne
+            const instructionMod = allTextModules.find(m => {
+                const id = m.getAttribute('id');
+                const content = m.querySelector('text')?.textContent || "";
+                return (id === 'TextC' || id === 'Text2' || id === 'consigne') && !content.includes('{{');
+            }) || allTextModules.find(m => !m.querySelector('text')?.textContent.includes('{{')) || allTextModules[0];
+
+            let instruction = instructionMod?.querySelector('text')?.textContent
+                .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/<[^>]*>?/gm, '')
+                .trim() || "";
+
+            // Si la consigne est quand même un trou (échec de détection), on met une consigne par défaut
+            if (instruction.includes('{{')) instruction = "أَخْتارُ الْكَلِمَةَ الْمُنَاسِبَةَ لِكُلِّ جُمْلَةٍ :";
+
+            // --- TYPE A : JEU DE MÉMOIRE (Memory Game) ---
             const gamememoAddon = xml.querySelector('addonModule[addonId="gamememo"]');
-
-            console.log("🎯 Recherche gamememo... Trouvé:", !!gamememoAddon);
-
             if (gamememoAddon) {
-                console.log("🎮 Module GAMEMEMO détecté !");
-
-                // Extraction des paires image/texte
+                console.log("🎮 Conversion Memory Game...");
                 const pairs = [];
                 const items = gamememoAddon.querySelectorAll('property[name="Pairs"] items item');
-
-                console.log(`📦 Nombre d'items trouvés: ${items.length}`);
-
-                items.forEach((item, idx) => {
-                    const imageA = item.querySelector('property[name="A (image)"]')?.getAttribute('value');
-                    const textA = item.querySelector('property[name="A (text)"]')?.getAttribute('value');
-                    const imageB = item.querySelector('property[name="B (image)"]')?.getAttribute('value');
-                    const textB = item.querySelector('property[name="B (text)"]')?.getAttribute('value');
-
-                    console.log(`Item ${idx}:`, { imageA, textA, imageB, textB });
-
-                    pairs.push({
-                        imageUrl: imageA || imageB,
-                        text: textB || textA || ''
-                    });
+                items.forEach(item => {
+                    const image = item.querySelector('property[name="A (image)"]')?.getAttribute('value') ||
+                        item.querySelector('property[name="B (image)"]')?.getAttribute('value');
+                    const text = item.querySelector('property[name="A (text)"]')?.getAttribute('value') ||
+                        item.querySelector('property[name="B (text)"]')?.getAttribute('value') || "";
+                    if (image) pairs.push({ imageUrl: image, text: text.replace(/<[^>]*>?/gm, '').trim() });
                 });
-
-                console.log(`✅ ${pairs.length} paires extraites:`);
-                pairs.forEach((pair, idx) => {
-                    console.log(`  Paire ${idx}:`, { imageUrl: pair.imageUrl, text: pair.text });
-                });
-
-                // Configuration de la grille
-                const columns = gamememoAddon.querySelector('property[name="Columns"]')?.getAttribute('value') || '4';
-                const rows = gamememoAddon.querySelector('property[name="Rows"]')?.getAttribute('value') || '3';
-
-                console.log(`📐 Grille: ${columns}x${rows}`);
-
-                // Extraction de la consigne
-                const instructionModule = xml.querySelector('textModule');
-                const instructionText = instructionModule?.querySelector('text')?.textContent || '';
-                const cleanInstruction = instructionText
-                    .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
-                    .replace(/<[^>]*>?/gm, ' ')
-                    .replace(/&nbsp;/g, ' ')
-                    .trim();
-
-                console.log(`📝 Consigne: ${cleanInstruction}`);
 
                 detected.push({
-                    id: 'gamememo-' + Date.now(),
+                    id: 'memo-' + Date.now(),
                     originalType: 'gamememo',
-                    text: cleanInstruction,
+                    text: instruction,
                     mappedType: 'GAMEMEMO',
                     selected: true,
-                    pairs: pairs,
-                    gridColumns: parseInt(columns),
-                    gridRows: parseInt(rows)
+                    pairs,
+                    gridColumns: parseInt(gamememoAddon.querySelector('property[name="Columns"]')?.getAttribute('value') || '4'),
+                    gridRows: parseInt(gamememoAddon.querySelector('property[name="Rows"]')?.getAttribute('value') || '3')
                 });
-
-                console.log("🎯 Composant GAMEMEMO créé et ajouté à la liste");
-
-                setConversionList(detected);
-                generatePreview(detected);
-                return;
+                setConversionList(detected); generatePreview(detected); return;
             }
 
-            // DÉTECTION D'AUTRES EXERCICES INTERACTIFS COMPLEXES
-            const complexAddons = ['advanced_connector', 'draganddrop', 'connection', 'sorting', 'truefalse'];
+            // --- TYPE B : DRAG AND DROP (Spatiale par alignement horizontal < 100) ---
+            const sourceList = xml.querySelector('sourceListModule');
+            const imageModules = Array.from(xml.querySelectorAll('imageModule'));
+            const gapTexts = allTextModules.filter(tm => tm.querySelector('text')?.textContent.includes('\\gap'));
+
+            if (gapTexts.length > 0 && imageModules.length > 0) {
+                console.log("🧩 Conversion Drag & Drop par proximité X...");
+                const labels = Array.from(sourceList?.querySelectorAll('items item') || [])
+                    .map(item => item.textContent.trim().replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1'));
+
+                const finalPairs = imageModules.filter(img => img.getAttribute('id')?.includes('Image')).map(img => {
+                    const abs = img.querySelector('layouts > layout > absolute');
+                    const imgX = parseInt(abs?.getAttribute('left') || '0');
+                    const imgPath = img.querySelector('image')?.getAttribute('src');
+
+                    const closestGap = gapTexts.find(gt => {
+                        const gtX = parseInt(gt.querySelector('layouts > layout > absolute')?.getAttribute('left') || '0');
+                        return Math.abs(gtX - imgX) < 150;
+                    });
+                    const gapContent = closestGap?.querySelector('text')?.textContent || "";
+                    const gapMatch = gapContent.match(/\\gap\{([^}]+)\}/);
+                    return { image: imgPath, answer: gapMatch ? gapMatch[1] : "" };
+                });
+
+                detected.push({
+                    id: 'dragdrop-' + Date.now(),
+                    originalType: 'mAuthor-DragDrop-Spatial',
+                    text: instruction,
+                    mappedType: 'DRAG_DROP_IMAGE',
+                    selected: true,
+                    isDragDrop: true,
+                    labels,
+                    pairs: finalPairs
+                });
+                setConversionList(detected); generatePreview(detected); return;
+            }
+
+            // --- TYPE C : IDENTIFICATION (QCM par Image - Spatiale par alignement Y < 150) ---
+            const identsAddon = Array.from(xml.querySelectorAll('addonModule[addonId="text_identification"]'));
+            if (identsAddon.length > 0 && imageModules.length > 0) {
+                console.log("🎯 Conversion Identification (QCM par image)...");
+                const qcmBlocks = imageModules.filter(img => img.getAttribute('id')?.includes('Image')).map(img => {
+                    const abs = img.querySelector('layouts > layout > absolute');
+                    const imgY = parseInt(abs?.getAttribute('top') || '0');
+                    const imgPath = img.querySelector('image')?.getAttribute('src');
+
+                    const options = identsAddon.filter(opt => {
+                        const optY = parseInt(opt.querySelector('layouts > layout > absolute')?.getAttribute('top') || '0');
+                        return Math.abs(optY - imgY) < 150;
+                    }).map(opt => {
+                        const textProp = Array.from(opt.querySelectorAll('property')).find(p => p.getAttribute('name') === 'Text');
+                        const correctProp = Array.from(opt.querySelectorAll('property')).find(p => p.getAttribute('name') === 'SelectionCorrect');
+                        return {
+                            text: textProp?.getAttribute('value')?.replace(/<[^>]*>?/gm, '').trim() || textProp?.textContent.replace(/<[^>]*>?/gm, '').trim() || "",
+                            isCorrect: correctProp?.getAttribute('value') === 'True'
+                        };
+                    });
+                    return { image: imgPath, options };
+                });
+
+                detected.push({
+                    id: 'ident-' + Date.now(),
+                    originalType: 'mAuthor-Identification',
+                    text: instruction,
+                    mappedType: 'IDENTIFICATION',
+                    selected: true,
+                    isIdentification: true,
+                    pairs: qcmBlocks
+                });
+                setConversionList(detected); generatePreview(detected); return;
+            }
+
+            // --- TYPE D : DROPDOWN CLOZE (Texte à trous avec menus) ---
+            const dropdownTexts = allTextModules.filter(t => t.querySelector('text')?.textContent.includes('{{'));
+            if (dropdownTexts.length > 0) {
+                console.log(`📝 Conversion DROPDOWN (${dropdownTexts.length} phrases détectées)...`);
+                const dropdownGroups = dropdownTexts.map((t, idx) => {
+                    let rawText = (t.querySelector('text')?.textContent || "")
+                        .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
+                        .replace(/&nbsp;/g, ' ');
+
+                    let segments = [];
+                    const regex = /\{\{\d+:([^}]+)\}\}/g;
+                    let match;
+                    let lastIndex = 0;
+
+                    while ((match = regex.exec(rawText)) !== null) {
+                        const preText = rawText.substring(lastIndex, match.index).replace(/<[^>]*>?/gm, '').trim();
+                        if (preText) segments.push({ type: "text", content: preText });
+
+                        const options = match[1].split('|').map(o => o.trim());
+                        segments.push({
+                            type: "dropdown",
+                            options: options,
+                            correctAnswer: options[0]
+                        });
+                        lastIndex = regex.lastIndex;
+                    }
+                    const postText = rawText.substring(lastIndex).replace(/<[^>]*>?/gm, '').trim();
+                    if (postText) segments.push({ type: "text", content: postText });
+
+                    return { id: t.getAttribute('id') || `dropdown-group-${idx}-${Date.now()}`, segments: segments.filter(s => s.type === 'dropdown' || (s.type === 'text' && s.content.length > 0)) };
+                });
+
+                detected.push({
+                    id: 'dropdown-' + Date.now(),
+                    originalType: 'DROPDOWN',
+                    text: instruction,
+                    mappedType: 'DROPDOWN_TEXT',
+                    selected: true,
+                    groups: dropdownGroups
+                });
+                setConversionList(detected); generatePreview(detected); return;
+            }
+
+            // 2. DÉTECTION D'AUTRES EXERCICES INTERACTIFS COMPLEXES (IFRAME FALLBACK)
+            const complexAddons = ['advanced_connector', 'draganddrop', 'connection', 'sorting', 'sorting_module', 'truefalse'];
             const hasComplexInteractivity = Array.from(xml.querySelectorAll('addonModule')).some(addon => {
                 const addonId = addon.getAttribute('addonId')?.toLowerCase() || '';
                 return complexAddons.some(complex => addonId.includes(complex));
@@ -332,7 +425,6 @@ const SCORMImporter = () => {
 
             if (hasComplexInteractivity) {
                 const pageName = xml.querySelector('page')?.getAttribute('name') || 'Exercice Interactif';
-
                 detected.push({
                     id: 'interactive-full-' + Date.now(),
                     originalType: 'mAuthor-Interactive-Exercise',
@@ -342,10 +434,7 @@ const SCORMImporter = () => {
                     isComplexInteractive: true,
                     pageReference: page.path
                 });
-
-                setConversionList(detected);
-                generatePreview(detected);
-                return;
+                setConversionList(detected); generatePreview(detected); return;
             }
 
 
@@ -427,6 +516,102 @@ const SCORMImporter = () => {
         const blocks = [];
         for (const mod of modules) {
             if (!mod.selected) continue;
+
+            // Traitement spécial pour DRAG_DROP_IMAGE (Spatiale)
+            if (mod.isDragDrop && mod.pairs && zipContent) {
+                const finalPairs = [];
+                for (const pair of mod.pairs) {
+                    let imageUrl = '';
+                    if (pair.image) {
+                        const cleanPath = pair.image.replace(/^(\.\/|\.\.\/|\/)+/, '');
+                        let imgFile = zipContent.file(cleanPath) ||
+                            zipContent.file('resources/' + cleanPath.split('/').pop());
+
+                        if (imgFile) {
+                            const blob = await imgFile.async("blob");
+                            imageUrl = URL.createObjectURL(blob);
+                        }
+                    }
+                    finalPairs.push({
+                        image: imageUrl,
+                        answer: pair.answer
+                    });
+                }
+
+                blocks.push({
+                    id: mod.id,
+                    type: 'DRAG_DROP_IMAGE',
+                    instruction: mod.text,
+                    draggableLabels: mod.labels,
+                    dropZones: finalPairs,
+                    style: { columns: 12, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                });
+                continue;
+            }
+
+            // Traitement spécial pour DRAG_DROP_IMAGE
+            if (mod.mappedType === 'DRAG_DROP_IMAGE' && mod.pairs && zipContent) {
+                const finalPairs = [];
+                for (const pair of mod.pairs) {
+                    let imageUrl = '';
+                    if (pair.image) {
+                        const cleanPath = pair.image.replace(/^(\.\/|\.\.\/|\/)+/, '');
+                        let imgFile = zipContent.file(cleanPath) ||
+                            zipContent.file('resources/' + cleanPath.split('/').pop());
+                        if (imgFile) {
+                            const blob = await imgFile.async("blob");
+                            imageUrl = URL.createObjectURL(blob);
+                        }
+                    }
+                    finalPairs.push({ image: imageUrl, answer: pair.answer });
+                }
+                blocks.push({
+                    id: mod.id, type: 'DRAG_DROP_IMAGE', instruction: mod.text,
+                    draggableLabels: mod.labels, dropZones: finalPairs,
+                    style: { columns: 12, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                });
+                continue;
+            }
+
+            // Traitement spécial pour IDENTIFICATION (QCM / Sélection par image)
+            if (mod.mappedType === 'IDENTIFICATION' && mod.pairs && zipContent) {
+                for (const pair of mod.pairs) {
+                    let imageUrl = '';
+                    if (pair.image) {
+                        const cleanPath = pair.image.replace(/^(\.\/|\.\.\/|\/)+/, '');
+                        let imgFile = zipContent.file(cleanPath) || zipContent.file('resources/' + cleanPath.split('/').pop());
+                        if (imgFile) {
+                            const blob = await imgFile.async("blob");
+                            imageUrl = URL.createObjectURL(blob);
+                        }
+                    }
+                    blocks.push({
+                        id: 'preview-' + Math.random().toString(36).substr(2, 9),
+                        type: 'CHOICE',
+                        instruction: mod.text || "Identifiez l'image",
+                        image: imageUrl,
+                        options: (pair.options || []).map((opt, idx) => ({
+                            id: 'opt-' + idx,
+                            text: opt.text,
+                            isCorrect: opt.isCorrect
+                        })),
+                        style: { columns: 6, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                    });
+                }
+                continue;
+            }
+
+            // Traitement spécial pour DROPDOWN_TEXT
+            if (mod.mappedType === 'DROPDOWN_TEXT' && mod.groups) {
+                blocks.push({
+                    id: mod.id,
+                    type: 'DROPDOWN_TEXT',
+                    instruction: mod.text || "أَخْتارُ الْكَلِمَةَ الْمُنَاسِبَةَ لِكُلِّ جُمْلَةٍ :",
+                    sentences: mod.groups,
+                    style: { columns: 12, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                });
+                continue;
+            }
 
             // Traitement spécial pour GAMEMEMO
             if (mod.mappedType === 'GAMEMEMO' && mod.pairs && zipContent) {
@@ -524,8 +709,78 @@ const SCORMImporter = () => {
             console.log("Cours actuel détecté:", currentCourse?.title);
             const blocks = [];
             const selectedMods = conversionList.filter(m => m.selected);
-
             for (const mod of selectedMods) {
+                // Cas spécial : DRAG_DROP_IMAGE
+                if (mod.mappedType === 'DRAG_DROP_IMAGE' && mod.pairs) {
+                    const finalPairs = [];
+                    for (const pair of mod.pairs) {
+                        let imageUrl = '';
+                        if (pair.image && zipContent) {
+                            const cleanPath = pair.image.replace(/^(\.\/|\.\.\/|\/)+/, '');
+                            let imgFile = zipContent.file(cleanPath) ||
+                                zipContent.file('resources/' + cleanPath.split('/').pop());
+                            if (imgFile) {
+                                try {
+                                    const blob = await imgFile.async("blob");
+                                    const fileObj = new File([blob], cleanPath.split('/').pop(), { type: "image/png" });
+                                    imageUrl = await uploadAsset(fileObj);
+                                } catch (e) { console.warn("Upload asset failed", e); }
+                            }
+                        }
+                        finalPairs.push({ image: imageUrl, answer: pair.answer });
+                    }
+                    blocks.push({
+                        id: 'imp-' + Math.random().toString(36).substr(2, 9),
+                        type: 'DRAG_DROP_IMAGE', instruction: mod.text,
+                        draggableLabels: mod.labels, dropZones: finalPairs,
+                        style: { columns: 12, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                    });
+                    continue;
+                }
+
+                // Cas spécial : IDENTIFICATION (Mappage vers plusieurs blocs CHOICE)
+                if (mod.mappedType === 'IDENTIFICATION' && mod.pairs) {
+                    for (const pair of mod.pairs) {
+                        let imageUrl = '';
+                        if (pair.image && zipContent) {
+                            const cleanPath = pair.image.replace(/^(\.\/|\.\.\/|\/)+/, '');
+                            let imgFile = zipContent.file(cleanPath) || zipContent.file('resources/' + cleanPath.split('/').pop());
+                            if (imgFile) {
+                                try {
+                                    const blob = await imgFile.async("blob");
+                                    const fileObj = new File([blob], cleanPath.split('/').pop(), { type: "image/png" });
+                                    imageUrl = await uploadAsset(fileObj);
+                                } catch (e) { console.warn("Upload failed", e); }
+                            }
+                        }
+                        blocks.push({
+                            id: 'imp-' + Math.random().toString(36).substr(2, 9),
+                            type: 'CHOICE',
+                            instruction: mod.text || "Identifiez l'image",
+                            image: imageUrl,
+                            options: (pair.options || []).map((opt, idx) => ({
+                                id: 'opt-' + idx,
+                                text: opt.text,
+                                isCorrect: opt.isCorrect
+                            })),
+                            style: { columns: 6, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                        });
+                    }
+                    continue;
+                }
+
+                // Cas spécial : DROPDOWN_TEXT
+                if (mod.mappedType === 'DROPDOWN_TEXT' && mod.groups) {
+                    blocks.push({
+                        id: 'imp-' + Math.random().toString(36).substr(2, 9),
+                        type: 'DROPDOWN_TEXT',
+                        instruction: mod.text || "أَخْتارُ الْكَلِمَةَ الْمُنَاسِبَةَ لِكُلِّ جُمْلَةٍ :",
+                        sentences: mod.groups,
+                        style: { columns: 12, margin: 16, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: 20 }
+                    });
+                    continue;
+                }
+
                 let imageUrl = '';
                 let videoUrl = mod.videoUrl || '';
 

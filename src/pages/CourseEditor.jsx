@@ -57,7 +57,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
 import useCourseStore from '../stores/courseStore';
-import SlideRenderer from '../components/SlideRenderer';
+import SlideRenderer, { ComponentRenderer } from '../components/SlideRenderer';
 import ColorPicker from '../components/ColorPicker';
 import TextStyleEditor from '../components/TextStyleEditor';
 import HeaderFooterToolbar from '../components/HeaderFooterToolbar';
@@ -134,27 +134,22 @@ const CourseEditor = () => {
         addSlide,
         updateActiveSlide,
         addBlock,
-        updateBlock,
         updateActiveBlock,
         addComponentToBlock,
-        updateComponent,
         updateActiveComponent,
         deleteComponent,
         reorderComponents,
         deleteBlock,
-        reorderBlocks,
         deleteSlide,
         setCourse,
         updateCourseMetadata,
         isPreviewMode,
-        setPreviewMode,
         saveCourse,
         isSaving,
         uploadAsset,
         levels,
         subjects,
         fetchCategories,
-        reorderSlides,
         setBlockElements,
         moveComponentBetweenBlocks,
         activeGlobalElement,
@@ -704,11 +699,12 @@ const CourseEditor = () => {
                                             <Columns size={13} style={{ opacity: 0.6, marginRight: '8px' }} />
                                             <span style={{ fontWeight: 600, flex: 1 }}>Col {cIdx + 1} (Span {cell.span})</span>
                                         </div>
-                                        {elements.map((comp) => {
-                                            const globalIdx = (course.header.blocks[0]?.elements || []).findIndex(el => el.id === comp.id);
+                                        {elements.map((comp, eIdx) => {
+                                            const globalId = comp.id || `comp-header-${eIdx}`;
+                                            const globalIdx = (course.header.blocks[0]?.elements || []).indexOf(comp);
                                             return (
                                                 <div
-                                                    key={comp.id}
+                                                    key={globalId}
                                                     onClick={() => { setActiveCellId(cell.id); setActiveBlockIndex(0); setActiveComponentIndex(globalIdx); }}
                                                     className={`sidebar-item ${activeComponentIndex === globalIdx && activeGlobalElement === 'header' ? 'active' : ''}`}
                                                     style={{ marginLeft: '20px', marginTop: '2px', padding: '4px 8px', borderRadius: '6px', fontSize: '0.7rem' }}
@@ -740,197 +736,200 @@ const CourseEditor = () => {
                                     <span style={{ fontSize: '0.85rem', fontWeight: 700, flex: 1 }}>{slide.title || `Diapo ${sIdx + 1}`}</span>
                                     {sIdx === activeSlideIndex && <button onClick={(e) => { e.stopPropagation(); deleteSlide(sIdx); }} className="btn-icon-sm" style={{ background: 'transparent' }}><Trash2 size={12} style={{ color: 'var(--noor-accent)' }} /></button>}
                                 </div>
-                                {sIdx === activeSlideIndex && (slide.blocks || []).map((block, bIdx) => (
-                                    <div
-                                        key={block.id || bIdx}
-                                        className="sidebar-block-container"
-                                        data-block-index={bIdx}
-                                        style={{ marginLeft: '16px', marginTop: '4px' }}
-                                    >
+                                {sIdx === activeSlideIndex && (slide.blocks || []).map((block, bIdx) => {
+                                    const blockKey = block.id || `block-${sIdx}-${bIdx}`;
+                                    return (
                                         <div
-                                            onClick={() => { setActiveBlockIndex(bIdx); setActiveComponentIndex(null); }}
-                                            className={`sidebar-item ${bIdx === activeBlockIndex && activeComponentIndex === null ? 'active' : ''}`}
-                                            style={{
-                                                padding: '6px 10px',
-                                                borderRadius: '10px',
-                                                background: bIdx === activeBlockIndex ? 'rgba(255,255,255,0.05)' : 'transparent',
-                                                fontSize: '0.75rem',
-                                                border: '1px solid transparent',
-                                                borderColor: bIdx === activeBlockIndex ? 'rgba(123, 97, 255, 0.2)' : 'transparent'
-                                            }}
+                                            key={blockKey}
+                                            className="sidebar-block-container"
+                                            data-block-index={bIdx}
+                                            style={{ marginLeft: '16px', marginTop: '4px' }}
                                         >
-                                            <Grid size={13} style={{ opacity: 0.6 }} />
-                                            <span style={{ fontWeight: 600 }}>{block.title || `Bloc ${bIdx + 1}`}</span>
-                                            <button onClick={(e) => { e.stopPropagation(); deleteBlock(bIdx); }} className="btn-icon-sm" style={{ background: 'transparent' }}><X size={10} /></button>
-                                        </div>
+                                            <div
+                                                onClick={() => { setActiveBlockIndex(bIdx); setActiveComponentIndex(null); }}
+                                                className={`sidebar-item ${bIdx === activeBlockIndex && activeComponentIndex === null ? 'active' : ''}`}
+                                                style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: '10px',
+                                                    background: bIdx === activeBlockIndex ? 'rgba(255,255,255,0.05)' : 'transparent',
+                                                    fontSize: '0.75rem',
+                                                    border: '1px solid transparent',
+                                                    borderColor: bIdx === activeBlockIndex ? 'rgba(123, 97, 255, 0.2)' : 'transparent'
+                                                }}
+                                            >
+                                                <Grid size={13} style={{ opacity: 0.6 }} />
+                                                <span style={{ fontWeight: 600 }}>{block.title || `Bloc ${bIdx + 1}`}</span>
+                                                <button onClick={(e) => { e.stopPropagation(); deleteBlock(bIdx); }} className="btn-icon-sm" style={{ background: 'transparent' }}><X size={10} /></button>
+                                            </div>
 
-                                        <Reorder.Group
-                                            as="div"
-                                            axis="y"
-                                            values={block.elements || []}
-                                            onReorder={(newElements) => {
-                                                // Only update if we're not in the middle of a cross-block drag
-                                                if (!window._isCrossBlockDrag && (window._dragSourceBlockIndex === undefined || window._dragSourceBlockIndex === bIdx)) {
-                                                    setBlockElements(bIdx, newElements);
-                                                }
-                                            }}
-                                            style={{
-                                                padding: 0,
-                                                margin: '4px 0 12px 0',
-                                                minHeight: '10px'
-                                            }}
-                                        >
-                                            {(block.elements || []).map((comp, cIdx) => (
-                                                <Reorder.Item
-                                                    as="div"
-                                                    key={comp.id || `${bIdx}-${cIdx}-${comp.type}`}
-                                                    value={comp}
-                                                    onDragStart={() => {
-                                                        // Store the source block index when drag starts
-                                                        window._dragSourceBlockIndex = bIdx;
-                                                        window._dragSourceComponentIndex = cIdx;
-                                                        window._isCrossBlockDrag = false;
-                                                    }}
-                                                    onDragEnd={(event, info) => {
-                                                        const elementsUnderPointer = document.elementsFromPoint(info.point.x, info.point.y);
-
-                                                        // Find the target block container
-                                                        let targetContainer = null;
-                                                        for (const el of elementsUnderPointer) {
-                                                            const container = el.closest('.sidebar-block-container');
-                                                            if (container) {
-                                                                targetContainer = container;
-                                                                break;
-                                                            }
-                                                        }
-
-                                                        if (targetContainer) {
-                                                            const targetIndex = parseInt(targetContainer.getAttribute('data-block-index'));
-                                                            if (!isNaN(targetIndex) && targetIndex !== bIdx) {
-                                                                // Moving to a different block
-                                                                window._isCrossBlockDrag = true;
-                                                                moveComponentBetweenBlocks(bIdx, cIdx, targetIndex);
-                                                            }
-                                                        }
-
-                                                        // Clean up after a short delay to let onReorder finish
-                                                        setTimeout(() => {
-                                                            delete window._dragSourceBlockIndex;
-                                                            delete window._dragSourceComponentIndex;
-                                                            delete window._isCrossBlockDrag;
-                                                        }, 100);
-                                                    }}
-                                                >
-                                                    <div
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveBlockIndex(bIdx);
-                                                            setActiveComponentIndex(cIdx);
+                                            <Reorder.Group
+                                                as="div"
+                                                axis="y"
+                                                values={block.elements || []}
+                                                onReorder={(newElements) => {
+                                                    // Only update if we're not in the middle of a cross-block drag
+                                                    if (!window._isCrossBlockDrag && (window._dragSourceBlockIndex === undefined || window._dragSourceBlockIndex === bIdx)) {
+                                                        setBlockElements(bIdx, newElements);
+                                                    }
+                                                }}
+                                                style={{
+                                                    padding: 0,
+                                                    margin: '4px 0 12px 0',
+                                                    minHeight: '10px'
+                                                }}
+                                            >
+                                                {(block.elements || []).map((comp, cIdx) => (
+                                                    <Reorder.Item
+                                                        as="div"
+                                                        key={comp.id || `${bIdx}-${cIdx}-${comp.type}`}
+                                                        value={comp}
+                                                        onDragStart={() => {
+                                                            // Store the source block index when drag starts
+                                                            window._dragSourceBlockIndex = bIdx;
+                                                            window._dragSourceComponentIndex = cIdx;
+                                                            window._isCrossBlockDrag = false;
                                                         }}
-                                                        className={`sidebar-item ${(bIdx === activeBlockIndex && cIdx === activeComponentIndex) ? 'active' : ''}`}
-                                                        style={{
-                                                            marginLeft: '20px',
-                                                            marginTop: '2px',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '6px',
-                                                            fontSize: '0.7rem',
-                                                            color: (bIdx === activeBlockIndex && cIdx === activeComponentIndex) ? 'var(--noor-secondary)' : 'var(--text-muted)',
-                                                            cursor: 'grab',
-                                                            background: (bIdx === activeBlockIndex && cIdx === activeComponentIndex) ? 'rgba(123, 97, 255, 0.1)' : 'transparent'
+                                                        onDragEnd={(event, info) => {
+                                                            const elementsUnderPointer = document.elementsFromPoint(info.point.x, info.point.y);
+
+                                                            // Find the target block container
+                                                            let targetContainer = null;
+                                                            for (const el of elementsUnderPointer) {
+                                                                const container = el.closest('.sidebar-block-container');
+                                                                if (container) {
+                                                                    targetContainer = container;
+                                                                    break;
+                                                                }
+                                                            }
+
+                                                            if (targetContainer) {
+                                                                const targetIndex = parseInt(targetContainer.getAttribute('data-block-index'));
+                                                                if (!isNaN(targetIndex) && targetIndex !== bIdx) {
+                                                                    // Moving to a different block
+                                                                    window._isCrossBlockDrag = true;
+                                                                    moveComponentBetweenBlocks(bIdx, cIdx, targetIndex);
+                                                                }
+                                                            }
+
+                                                            // Clean up after a short delay to let onReorder finish
+                                                            setTimeout(() => {
+                                                                delete window._dragSourceBlockIndex;
+                                                                delete window._dragSourceComponentIndex;
+                                                                delete window._isCrossBlockDrag;
+                                                            }, 100);
                                                         }}
                                                     >
-                                                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor' }} />
-                                                        <span style={{ fontWeight: 500, flex: 1 }}>{comp.type}</span>
-                                                        {bIdx === activeBlockIndex && cIdx === activeComponentIndex && (
-                                                            <div style={{ display: 'flex', gap: '4px', position: 'relative' }}>
-                                                                {/* Move button */}
-                                                                {(course.slides[activeSlideIndex]?.blocks || []).length > 1 && (
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveBlockIndex(bIdx);
+                                                                setActiveComponentIndex(cIdx);
+                                                            }}
+                                                            className={`sidebar-item ${(bIdx === activeBlockIndex && cIdx === activeComponentIndex) ? 'active' : ''}`}
+                                                            style={{
+                                                                marginLeft: '20px',
+                                                                marginTop: '2px',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '6px',
+                                                                fontSize: '0.7rem',
+                                                                color: (bIdx === activeBlockIndex && cIdx === activeComponentIndex) ? 'var(--noor-secondary)' : 'var(--text-muted)',
+                                                                cursor: 'grab',
+                                                                background: (bIdx === activeBlockIndex && cIdx === activeComponentIndex) ? 'rgba(123, 97, 255, 0.1)' : 'transparent'
+                                                            }}
+                                                        >
+                                                            <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor' }} />
+                                                            <span style={{ fontWeight: 500, flex: 1 }}>{comp.type}</span>
+                                                            {bIdx === activeBlockIndex && cIdx === activeComponentIndex && (
+                                                                <div style={{ display: 'flex', gap: '4px', position: 'relative' }}>
+                                                                    {/* Move button */}
+                                                                    {(course.slides[activeSlideIndex]?.blocks || []).length > 1 && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setShowMoveMenu(showMoveMenu?.blockIndex === bIdx && showMoveMenu?.componentIndex === cIdx ? null : { blockIndex: bIdx, componentIndex: cIdx });
+                                                                            }}
+                                                                            className="btn-icon-sm"
+                                                                            style={{ background: 'transparent', width: '20px', height: '20px', position: 'relative' }}
+                                                                            title="Déplacer vers un autre bloc"
+                                                                        >
+                                                                            <ArrowRightLeft size={10} style={{ color: 'var(--noor-secondary)' }} />
+                                                                        </button>
+                                                                    )}
+
+                                                                    {/* Delete button */}
                                                                     <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setShowMoveMenu(showMoveMenu?.blockIndex === bIdx && showMoveMenu?.componentIndex === cIdx ? null : { blockIndex: bIdx, componentIndex: cIdx });
-                                                                        }}
+                                                                        onClick={(e) => { e.stopPropagation(); deleteComponent(bIdx, cIdx); }}
                                                                         className="btn-icon-sm"
-                                                                        style={{ background: 'transparent', width: '20px', height: '20px', position: 'relative' }}
-                                                                        title="Déplacer vers un autre bloc"
+                                                                        style={{ background: 'transparent', width: '20px', height: '20px' }}
                                                                     >
-                                                                        <ArrowRightLeft size={10} style={{ color: 'var(--noor-secondary)' }} />
+                                                                        <Trash2 size={10} style={{ color: 'var(--noor-accent)' }} />
                                                                     </button>
-                                                                )}
 
-                                                                {/* Delete button */}
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); deleteComponent(bIdx, cIdx); }}
-                                                                    className="btn-icon-sm"
-                                                                    style={{ background: 'transparent', width: '20px', height: '20px' }}
-                                                                >
-                                                                    <Trash2 size={10} style={{ color: 'var(--noor-accent)' }} />
-                                                                </button>
-
-                                                                {/* Move menu dropdown */}
-                                                                {showMoveMenu?.blockIndex === bIdx && showMoveMenu?.componentIndex === cIdx && (
-                                                                    <div
-                                                                        style={{
-                                                                            position: 'absolute',
-                                                                            top: '100%',
-                                                                            right: 0,
-                                                                            marginTop: '4px',
-                                                                            background: 'var(--bg-secondary)',
-                                                                            border: '1px solid var(--glass-border)',
-                                                                            borderRadius: '8px',
-                                                                            padding: '4px',
-                                                                            zIndex: 1000,
-                                                                            minWidth: '150px',
-                                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                                                                        }}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 700 }}>
-                                                                            Déplacer vers:
+                                                                    {/* Move menu dropdown */}
+                                                                    {showMoveMenu?.blockIndex === bIdx && showMoveMenu?.componentIndex === cIdx && (
+                                                                        <div
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                top: '100%',
+                                                                                right: 0,
+                                                                                marginTop: '4px',
+                                                                                background: 'var(--bg-secondary)',
+                                                                                border: '1px solid var(--glass-border)',
+                                                                                borderRadius: '8px',
+                                                                                padding: '4px',
+                                                                                zIndex: 1000,
+                                                                                minWidth: '150px',
+                                                                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                                                                            }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', padding: '4px 8px', fontWeight: 700 }}>
+                                                                                Déplacer vers:
+                                                                            </div>
+                                                                            {(course.slides[activeSlideIndex]?.blocks || []).map((targetBlock, targetIdx) => {
+                                                                                if (targetIdx === bIdx) return null;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={targetIdx}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            moveComponentBetweenBlocks(bIdx, cIdx, targetIdx);
+                                                                                            setShowMoveMenu(null);
+                                                                                            toast.success('Composant déplacé !');
+                                                                                        }}
+                                                                                        style={{
+                                                                                            width: '100%',
+                                                                                            padding: '6px 8px',
+                                                                                            background: 'transparent',
+                                                                                            border: 'none',
+                                                                                            borderRadius: '6px',
+                                                                                            color: 'white',
+                                                                                            fontSize: '0.7rem',
+                                                                                            cursor: 'pointer',
+                                                                                            textAlign: 'left',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            gap: '6px'
+                                                                                        }}
+                                                                                        onMouseEnter={(e) => e.target.style.background = 'rgba(123, 97, 255, 0.1)'}
+                                                                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                                                                    >
+                                                                                        <Grid size={10} style={{ opacity: 0.6 }} />
+                                                                                        {targetBlock.title || `Bloc ${targetIdx + 1}`}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
                                                                         </div>
-                                                                        {(course.slides[activeSlideIndex]?.blocks || []).map((targetBlock, targetIdx) => {
-                                                                            if (targetIdx === bIdx) return null;
-                                                                            return (
-                                                                                <button
-                                                                                    key={targetIdx}
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        moveComponentBetweenBlocks(bIdx, cIdx, targetIdx);
-                                                                                        setShowMoveMenu(null);
-                                                                                        toast.success('Composant déplacé !');
-                                                                                    }}
-                                                                                    style={{
-                                                                                        width: '100%',
-                                                                                        padding: '6px 8px',
-                                                                                        background: 'transparent',
-                                                                                        border: 'none',
-                                                                                        borderRadius: '6px',
-                                                                                        color: 'white',
-                                                                                        fontSize: '0.7rem',
-                                                                                        cursor: 'pointer',
-                                                                                        textAlign: 'left',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        gap: '6px'
-                                                                                    }}
-                                                                                    onMouseEnter={(e) => e.target.style.background = 'rgba(123, 97, 255, 0.1)'}
-                                                                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                                                                                >
-                                                                                    <Grid size={10} style={{ opacity: 0.6 }} />
-                                                                                    {targetBlock.title || `Bloc ${targetIdx + 1}`}
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </Reorder.Item>
-                                            ))}
-                                        </Reorder.Group>
-                                    </div>
-                                ))}
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </Reorder.Item>
+                                                ))}
+                                            </Reorder.Group>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ))}
 
@@ -959,7 +958,7 @@ const CourseEditor = () => {
                                             <span style={{ fontWeight: 600, flex: 1 }}>Col {cIdx + 1} (Span {cell.span})</span>
                                         </div>
                                         {elements.map((comp) => {
-                                            const globalIdx = (course.footer.blocks[0]?.elements || []).findIndex(el => el.id === comp.id);
+                                            const globalIdx = (course.footer.blocks[0]?.elements || []).indexOf(comp);
                                             return (
                                                 <div
                                                     key={comp.id}
@@ -1003,369 +1002,265 @@ const CourseEditor = () => {
                                 display: 'flex',
                                 flexDirection: 'column'
                             }}>
-                                {/* MINI HEADER PREVIEW - Now renders based on global state too */}
-                                <div style={{
-                                    height: `${course.playerConfig?.headerHeight || 60}px`,
-                                    background: course.playerConfig?.headerBackground || 'rgba(18, 21, 45, 0.98)',
-                                    borderBottom: '1px solid var(--glass-border)',
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(12, 1fr)',
-                                    gap: '4px',
-                                    padding: '0 10px',
-                                    zIndex: 10,
-                                    opacity: activeGlobalElement === 'footer' ? 0.3 : 1,
-                                    position: 'relative',
-                                    direction: course.playerConfig?.headerLayout?.isRTL ? 'rtl' : 'ltr'
-                                }}>
-                                    {/* GHOST GRID */}
-                                    {activeGlobalElement === 'header' && (
-                                        <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '4px', padding: '0 10px', pointerEvents: 'none' }}>
-                                            {Array.from({ length: 12 }).map((_, i) => (
-                                                <div key={i} style={{ background: 'rgba(123, 97, 255, 0.05)', borderLeft: '1px dashed rgba(123, 97, 255, 0.1)', borderRight: '1px dashed rgba(123, 97, 255, 0.1)' }} />
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {(course.playerConfig?.headerLayout?.cells || [
-                                        { id: 'h-cell-1', span: 3, alignment: 'left' },
-                                        { id: 'h-cell-2', span: 6, alignment: 'center' },
-                                        { id: 'h-cell-3', span: 3, alignment: 'right' }
-                                    ]).map(cell => {
-                                        const cellElements = (course.header?.blocks?.flatMap(b => b.elements) || [])
-                                            .filter(el => el.cellId === cell.id);
-
-                                        return (
-                                            <div
-                                                key={cell.id}
-                                                onClick={() => setEditingGlobalElement('header')}
-                                                style={{
-                                                    gridColumn: `span ${cell.span}`,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
-                                                    height: '100%',
-                                                    border: activeGlobalElement === 'header' ? '1px dashed var(--noor-secondary)' : 'none',
-                                                    background: activeGlobalElement === 'header' ? 'rgba(123, 97, 255, 0.03)' : 'transparent',
-                                                    cursor: 'pointer',
-                                                    padding: '0 10px',
-                                                    position: 'relative',
-                                                    zIndex: 2,
-                                                    transition: 'all 0.2s',
-                                                    minWidth: 0,
-                                                    overflow: 'hidden',
-                                                    containerType: 'inline-size'
-                                                }}
-                                                onMouseEnter={e => { if (activeGlobalElement === 'header') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.08)'; }}
-                                                onMouseLeave={e => { if (activeGlobalElement === 'header') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.03)'; }}
-                                            >
-                                                {cellElements.map(element => (
-                                                    <div
-                                                        key={element.id}
-                                                        style={{
-                                                            transform: 'scale(0.8)',
-                                                            position: 'relative',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            maxWidth: '100%',
-                                                            justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
-                                                            overflow: 'hidden'
-                                                        }}
-                                                        className="global-comp-preview-item"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setEditingGlobalElement('header');
-                                                            setActiveCellId(cell.id);
-                                                            setActiveBlockIndex(0);
-                                                            setActiveComponentIndex(course.header.blocks[0].elements.findIndex(el => el.id === element.id));
-                                                        }}
-                                                    >
-                                                        {element.type === 'ANIMATED_LOGO' && (
-                                                            <div style={{ maxWidth: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
-                                                                <AnimatedLogo size={element.size || 30} />
-                                                            </div>
-                                                        )}
-                                                        {element.type === 'COURSE_TITLE' && (
-                                                            <span style={{
-                                                                fontSize: element.style?.fontSize ? `calc(4px + 5cqw)` : 'calc(6px + 4cqw)',
-                                                                fontWeight: element.style?.fontWeight || 800,
-                                                                color: element.style?.color || 'white',
-                                                                maxWidth: '100%',
-                                                                lineHeight: '1.2',
-                                                                wordBreak: 'break-word'
-                                                            }} title={course.title}>{course.title}</span>
-                                                        )}
-                                                        {element.type === 'SLIDE_COUNTER' && (
-                                                            <span style={{
-                                                                fontSize: element.style?.fontSize ? `calc(4px + 4cqw)` : 'calc(5px + 3cqw)',
-                                                                color: element.style?.color || 'var(--text-muted)',
-                                                                fontWeight: element.style?.fontWeight || 700,
-                                                                lineHeight: '1.2'
-                                                            }}>{activeSlideIndex + 1} / {course.slides.length}</span>
-                                                        )}
-                                                        {element.type === 'PROGRESS_BAR' && (
-                                                            <div style={{
-                                                                width: '100%',
-                                                                maxWidth: '80px',
-                                                                flexShrink: 1,
-                                                                height: '4px',
-                                                                background: 'rgba(255,255,255,0.1)',
-                                                                borderRadius: '2px',
-                                                                overflow: 'hidden'
-                                                            }}>
-                                                                <div style={{
-                                                                    width: `${Math.round(((activeSlideIndex + 1) / (course.slides?.length || 1)) * 100)}%`,
-                                                                    height: '100%',
-                                                                    background: element.style?.color || 'var(--noor-secondary)'
-                                                                }} />
-                                                            </div>
-                                                        )}
-                                                        {element.type === 'INTERACTION_SCORE' && (
-                                                            <div style={{ opacity: 0.6, transform: 'scale(0.7)', maxWidth: '100%', overflow: 'hidden' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(72, 232, 167, 0.08)', padding: '4px 10px', borderRadius: '10px', border: '1px solid rgba(72, 232, 167, 0.2)', whiteSpace: 'nowrap' }}>
-                                                                    <Activity size={14} color={element.style?.color || "#48e8a7"} />
-                                                                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: element.style?.color || '#48e8a7' }}>0%</div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (window.confirm('Supprimer ce composant ?')) deleteComponent(0, course.header.blocks[0].elements.findIndex(el => el.id === element.id));
-                                                            }}
-                                                            className="delete-hover-btn"
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: '-10px',
-                                                                right: '-10px',
-                                                                width: '18px',
-                                                                height: '18px',
-                                                                borderRadius: '50%',
-                                                                background: '#ff4757',
-                                                                border: 'none',
-                                                                color: 'white',
-                                                                display: 'none',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                cursor: 'pointer',
-                                                                zIndex: 10
-                                                            }}
-                                                        >
-                                                            <Trash2 size={10} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-
+                                {(() => {
+                                    const hLayout = course.playerConfig?.headerLayout || {};
+                                    return (
+                                        <div style={{
+                                            height: `${hLayout.height || 60}px`,
+                                            padding: hLayout.isCard ? '8px 16px' : '0',
+                                            zIndex: 10,
+                                            opacity: activeGlobalElement === 'footer' ? 0.3 : 1,
+                                            position: 'relative'
+                                        }}>
+                                            <div style={{
+                                                height: '100%',
+                                                background: hLayout.background || 'rgba(18, 21, 45, 0.98)',
+                                                borderRadius: hLayout.isCard ? `${hLayout.borderRadius || 12}px` : '0',
+                                                border: `${hLayout.borderWidth || 1}px solid ${hLayout.borderColor || 'var(--glass-border)'}`,
+                                                boxShadow: hLayout.isCard ? '0 8px 30px rgba(0,0,0,0.3)' : 'none',
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(12, 1fr)',
+                                                gap: `${hLayout.gap ?? 4}px`,
+                                                padding: `0 ${hLayout.padding || 10}px`,
+                                                direction: hLayout.isRTL ? 'rtl' : 'ltr',
+                                                position: 'relative',
+                                                overflow: 'hidden'
+                                            }}>
+                                                {/* GHOST GRID */}
                                                 {activeGlobalElement === 'header' && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setGlobalCompModal({ isOpen: true, type: 'header', cellId: cell.id });
-                                                        }}
-                                                        className="btn-icon-sm"
-                                                        style={{
-                                                            minWidth: '24px',
-                                                            height: '24px',
-                                                            background: 'rgba(123, 97, 255, 0.2)',
-                                                            border: 'none',
-                                                            color: 'var(--noor-secondary)',
-                                                            borderRadius: '50%',
-                                                            marginLeft: cellElements.length > 0 ? '8px' : 0,
-                                                            zIndex: 5
-                                                        }}
-                                                    >
-                                                        <Plus size={14} />
-                                                    </button>
+                                                    <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '4px', padding: `0 ${hLayout.padding || 10}px`, pointerEvents: 'none' }}>
+                                                        {Array.from({ length: 12 }).map((_, i) => (
+                                                            <div key={i} style={{ background: 'rgba(123, 97, 255, 0.05)', borderLeft: '1px dashed rgba(123, 97, 255, 0.1)', borderRight: '1px dashed rgba(123, 97, 255, 0.1)' }} />
+                                                        ))}
+                                                    </div>
                                                 )}
+
+                                                {(course.playerConfig?.headerLayout?.cells || [
+                                                    { id: 'h-cell-1', span: 3, alignment: 'left' },
+                                                    { id: 'h-cell-2', span: 6, alignment: 'center' },
+                                                    { id: 'h-cell-3', span: 3, alignment: 'right' }
+                                                ]).map(cell => {
+                                                    const cellElements = (course.header?.blocks?.flatMap(b => b.elements) || [])
+                                                        .filter(el => el.cellId === cell.id);
+
+                                                    return (
+                                                        <div
+                                                            key={cell.id}
+                                                            onClick={() => setEditingGlobalElement('header')}
+                                                            style={{
+                                                                gridColumn: `span ${cell.span}`,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
+                                                                height: '100%',
+                                                                border: activeGlobalElement === 'header' ? '1px dashed var(--noor-secondary)' : 'none',
+                                                                background: activeGlobalElement === 'header' ? 'rgba(123, 97, 255, 0.03)' : 'transparent',
+                                                                cursor: 'pointer',
+                                                                padding: '0 10px',
+                                                                position: 'relative',
+                                                                zIndex: 2,
+                                                                transition: 'all 0.2s',
+                                                                minWidth: 0,
+                                                                overflow: 'hidden',
+                                                                containerType: 'inline-size'
+                                                            }}
+                                                            onMouseEnter={e => { if (activeGlobalElement === 'header') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.08)'; }}
+                                                            onMouseLeave={e => { if (activeGlobalElement === 'header') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.03)'; }}
+                                                        >
+                                                            {cellElements.map(element => (
+                                                                <div
+                                                                    key={element.id}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        height: '100%',
+                                                                        position: 'relative',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
+                                                                        // overflow: 'hidden' // Removed to fix shadow cropping
+                                                                    }}
+                                                                    className="global-comp-preview-item"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditingGlobalElement('header');
+                                                                        setActiveCellId(cell.id);
+                                                                        setActiveBlockIndex(0);
+                                                                        setActiveComponentIndex(course.header.blocks[0].elements.findIndex(el => el.id === element.id));
+                                                                    }}
+                                                                >
+                                                                    <ComponentRenderer
+                                                                        component={element}
+                                                                        isPreview={true}
+                                                                    />
+
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (window.confirm('Supprimer ce composant ?')) deleteComponent(0, course.header.blocks[0].elements.findIndex(el => el.id === element.id));
+                                                                        }}
+                                                                        className="delete-hover-btn"
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '-10px',
+                                                                            right: '-10px',
+                                                                            width: '18px',
+                                                                            height: '18px',
+                                                                            borderRadius: '50%',
+                                                                            background: '#ff4757',
+                                                                            border: 'none',
+                                                                            color: 'white',
+                                                                            display: 'none',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            cursor: 'pointer',
+                                                                            zIndex: 10
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 <div style={{ flex: 1, position: 'relative', overflow: 'auto', padding: activeGlobalElement ? '20px' : '48px', opacity: activeGlobalElement ? 0.3 : 1 }}>
                                     {!activeGlobalElement && <SlideRenderer slide={activeSlide} isPreview={isPreviewMode} />}
                                 </div>
 
                                 {/* MINI FOOTER PREVIEW */}
-                                <div style={{
-                                    height: `${course.playerConfig?.footerHeight || 60}px`,
-                                    background: course.playerConfig?.footerBackground || 'rgba(18, 21, 45, 0.98)',
-                                    borderTop: '1px solid var(--glass-border)',
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(12, 1fr)',
-                                    gap: '4px',
-                                    padding: '0 10px',
-                                    zIndex: 10,
-                                    opacity: activeGlobalElement === 'header' ? 0.3 : 1,
-                                    position: 'relative',
-                                    direction: course.playerConfig?.footerLayout?.isRTL ? 'rtl' : 'ltr'
-                                }}>
-                                    {/* GHOST GRID */}
-                                    {activeGlobalElement === 'footer' && (
-                                        <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '4px', padding: '0 10px', pointerEvents: 'none' }}>
-                                            {Array.from({ length: 12 }).map((_, i) => (
-                                                <div key={i} style={{ background: 'rgba(123, 97, 255, 0.05)', borderLeft: '1px dashed rgba(123, 97, 255, 0.1)', borderRight: '1px dashed rgba(123, 97, 255, 0.1)' }} />
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {(course.playerConfig?.footerLayout?.cells || [
-                                        { id: 'f-cell-prev', span: 3, alignment: 'left' },
-                                        { id: 'f-cell-counter', span: 6, alignment: 'center' },
-                                        { id: 'f-cell-next', span: 3, alignment: 'right' }
-                                    ]).map(cell => {
-                                        const cellElements = (course.footer?.blocks?.flatMap(b => b.elements) || [])
-                                            .filter(el => el.cellId === cell.id);
-
-                                        return (
-                                            <div
-                                                key={cell.id}
-                                                onClick={() => setEditingGlobalElement('footer')}
-                                                style={{
-                                                    gridColumn: `span ${cell.span}`,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
-                                                    height: '100%',
-                                                    border: activeGlobalElement === 'footer' ? '1px dashed var(--noor-secondary)' : 'none',
-                                                    background: activeGlobalElement === 'footer' ? 'rgba(123, 97, 255, 0.03)' : 'transparent',
-                                                    cursor: 'pointer',
-                                                    padding: '0 10px',
-                                                    gap: '8px',
-                                                    position: 'relative',
-                                                    zIndex: 2,
-                                                    transition: 'all 0.2s',
-                                                    minWidth: 0,
-                                                    overflow: 'hidden'
-                                                }}
-                                                onMouseEnter={e => { if (activeGlobalElement === 'footer') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.08)'; }}
-                                                onMouseLeave={e => { if (activeGlobalElement === 'footer') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.03)'; }}
-                                            >
-                                                {cell.id === 'f-cell-prev' && (
-                                                    <button disabled className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.6rem', opacity: 0.5 }}>Précédent</button>
-                                                )}
-                                                {cell.id === 'f-cell-next' && (
-                                                    <button disabled className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.6rem', opacity: 0.5 }}>Suivant</button>
-                                                )}
-                                                {cell.id === 'f-cell-counter' && (
-                                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.6 }}>{activeSlideIndex + 1} / {course.slides.length}</div>
-                                                )}
-
-                                                {cellElements.map(element => (
-                                                    <div
-                                                        key={element.id}
-                                                        style={{
-                                                            transform: 'scale(0.8)',
-                                                            position: 'relative',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            maxWidth: '100%',
-                                                            justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
-                                                            overflow: 'hidden'
-                                                        }}
-                                                        className="global-comp-preview-item"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setEditingGlobalElement('footer');
-                                                            setActiveCellId(cell.id);
-                                                            setActiveBlockIndex(0);
-                                                            setActiveComponentIndex(course.footer.blocks[0].elements.findIndex(el => el.id === element.id));
-                                                        }}
-                                                    >
-                                                        {element.type === 'ANIMATED_LOGO' && (
-                                                            <div style={{ maxWidth: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
-                                                                <AnimatedLogo size={element.size || 30} />
-                                                            </div>
-                                                        )}
-                                                        {element.type === 'COURSE_TITLE' && (
-                                                            <span style={{
-                                                                fontSize: element.style?.fontSize ? `calc(4px + 5cqw)` : 'calc(6px + 4cqw)',
-                                                                fontWeight: element.style?.fontWeight || 800,
-                                                                color: element.style?.color || 'white',
-                                                                maxWidth: '100%',
-                                                                lineHeight: '1.2',
-                                                                wordBreak: 'break-word'
-                                                            }} title={course.title}>{course.title}</span>
-                                                        )}
-                                                        {element.type === 'SLIDE_COUNTER' && (
-                                                            <span style={{
-                                                                fontSize: element.style?.fontSize ? `calc(4px + 4cqw)` : 'calc(5px + 3cqw)',
-                                                                color: element.style?.color || 'var(--text-muted)',
-                                                                fontWeight: element.style?.fontWeight || 700,
-                                                                lineHeight: '1.2'
-                                                            }}>{activeSlideIndex + 1} / {course.slides.length}</span>
-                                                        )}
-                                                        {element.type === 'PROGRESS_BAR' && (
-                                                            <div style={{
-                                                                width: '100%',
-                                                                maxWidth: '80px',
-                                                                flexShrink: 1,
-                                                                height: '4px',
-                                                                background: 'rgba(255,255,255,0.1)',
-                                                                borderRadius: '2px',
-                                                                overflow: 'hidden'
-                                                            }}>
-                                                                <div style={{
-                                                                    width: `${Math.round(((activeSlideIndex + 1) / (course.slides?.length || 1)) * 100)}%`,
-                                                                    height: '100%',
-                                                                    background: element.style?.color || 'var(--noor-secondary)'
-                                                                }} />
-                                                            </div>
-                                                        )}
-
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (window.confirm('Supprimer ce composant ?')) deleteComponent(0, course.footer.blocks[0].elements.findIndex(el => el.id === element.id));
-                                                            }}
-                                                            className="delete-hover-btn"
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: '-10px',
-                                                                right: '-10px',
-                                                                width: '18px',
-                                                                height: '18px',
-                                                                borderRadius: '50%',
-                                                                background: '#ff4757',
-                                                                border: 'none',
-                                                                color: 'white',
-                                                                display: 'none',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                cursor: 'pointer',
-                                                                zIndex: 10
-                                                            }}
-                                                        >
-                                                            <Trash2 size={10} />
-                                                        </button>
+                                {(() => {
+                                    const fLayout = course.playerConfig?.footerLayout || {};
+                                    return (
+                                        <div style={{
+                                            height: `${fLayout.height || 60}px`,
+                                            padding: fLayout.isCard ? '8px 16px' : '0',
+                                            zIndex: 10,
+                                            opacity: activeGlobalElement === 'header' ? 0.3 : 1,
+                                            position: 'relative'
+                                        }}>
+                                            <div style={{
+                                                height: '100%',
+                                                background: fLayout.background || 'rgba(18, 21, 45, 0.98)',
+                                                borderRadius: fLayout.isCard ? `${fLayout.borderRadius || 12}px` : '0',
+                                                border: `${fLayout.borderWidth || 1}px solid ${fLayout.borderColor || 'var(--glass-border)'}`,
+                                                boxShadow: fLayout.isCard ? '0 -8px 30px rgba(0,0,0,0.3)' : 'none',
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(12, 1fr)',
+                                                gap: `${fLayout.gap ?? 4}px`,
+                                                padding: `0 ${fLayout.padding || 10}px`,
+                                                direction: fLayout.isRTL ? 'rtl' : 'ltr',
+                                                position: 'relative',
+                                                overflow: 'hidden'
+                                            }}>
+                                                {/* GHOST GRID */}
+                                                {activeGlobalElement === 'footer' && (
+                                                    <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '4px', padding: `0 ${fLayout.padding || 10}px`, pointerEvents: 'none' }}>
+                                                        {Array.from({ length: 12 }).map((_, i) => (
+                                                            <div key={i} style={{ background: 'rgba(123, 97, 255, 0.05)', borderLeft: '1px dashed rgba(123, 97, 255, 0.1)', borderRight: '1px dashed rgba(123, 97, 255, 0.1)' }} />
+                                                        ))}
                                                     </div>
-                                                ))}
-
-                                                {activeGlobalElement === 'footer' && !['f-cell-prev', 'f-cell-next', 'f-cell-counter'].includes(cell.id) && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setGlobalCompModal({ isOpen: true, type: 'footer', cellId: cell.id });
-                                                        }}
-                                                        className="btn-icon-sm"
-                                                        style={{
-                                                            minWidth: '24px',
-                                                            height: '24px',
-                                                            background: 'rgba(123, 97, 255, 0.2)',
-                                                            border: 'none',
-                                                            color: 'var(--noor-secondary)',
-                                                            borderRadius: '50%',
-                                                            marginLeft: cellElements.length > 0 ? '8px' : 0,
-                                                            zIndex: 5
-                                                        }}
-                                                    >
-                                                        <Plus size={14} />
-                                                    </button>
                                                 )}
+
+                                                {(course.playerConfig?.footerLayout?.cells || [
+                                                    { id: 'f-cell-prev', span: 3, alignment: 'left' },
+                                                    { id: 'f-cell-counter', span: 6, alignment: 'center' },
+                                                    { id: 'f-cell-next', span: 3, alignment: 'right' }
+                                                ]).map(cell => {
+                                                    const cellElements = (course.footer?.blocks?.flatMap(b => b.elements) || [])
+                                                        .filter(el => el.cellId === cell.id);
+
+                                                    return (
+                                                        <div
+                                                            key={cell.id}
+                                                            onClick={() => setEditingGlobalElement('footer')}
+                                                            style={{
+                                                                gridColumn: `span ${cell.span}`,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
+                                                                height: '100%',
+                                                                border: activeGlobalElement === 'footer' ? '1px dashed var(--noor-secondary)' : 'none',
+                                                                background: activeGlobalElement === 'footer' ? 'rgba(123, 97, 255, 0.03)' : 'transparent',
+                                                                cursor: 'pointer',
+                                                                padding: '0 10px',
+                                                                gap: '8px',
+                                                                position: 'relative',
+                                                                zIndex: 2,
+                                                                transition: 'all 0.2s',
+                                                                minWidth: 0,
+                                                                overflow: 'hidden'
+                                                            }}
+                                                            onMouseEnter={e => { if (activeGlobalElement === 'footer') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.08)'; }}
+                                                            onMouseLeave={e => { if (activeGlobalElement === 'footer') e.currentTarget.style.background = 'rgba(123, 97, 255, 0.03)'; }}
+                                                        >
+
+                                                            {cellElements.map(element => (
+                                                                <div
+                                                                    key={element.id}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        height: '100%',
+                                                                        position: 'relative',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: cell.alignment === 'center' ? 'center' : cell.alignment === 'right' ? 'flex-end' : 'flex-start',
+                                                                        // overflow: 'hidden' // Removed
+                                                                    }}
+                                                                    className="global-comp-preview-item"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditingGlobalElement('footer');
+                                                                        setActiveCellId(cell.id);
+                                                                        setActiveBlockIndex(0);
+                                                                        setActiveComponentIndex(course.footer.blocks[0].elements.findIndex(el => el.id === element.id));
+                                                                    }}
+                                                                >
+                                                                    <ComponentRenderer
+                                                                        component={element}
+                                                                        isPreview={true}
+                                                                    />
+
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (window.confirm('Supprimer ce composant ?')) deleteComponent(0, course.footer.blocks[0].elements.findIndex(el => el.id === element.id));
+                                                                        }}
+                                                                        className="delete-hover-btn"
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: '-10px',
+                                                                            right: '-10px',
+                                                                            width: '18px',
+                                                                            height: '18px',
+                                                                            borderRadius: '50%',
+                                                                            background: '#ff4757',
+                                                                            border: 'none',
+                                                                            color: 'white',
+                                                                            display: 'none',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            cursor: 'pointer',
+                                                                            zIndex: 10
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                        </div>
+                                    );
+                                })()}
                             </motion.div>
                         </AnimatePresence>
                     </div>
@@ -1402,36 +1297,55 @@ const CourseEditor = () => {
                                     <input className="input-field" value={getInspectorTarget().title || ''} onChange={(e) => getInspectorUpdateFn()({ title: e.target.value })} />
                                 </div>
 
-                                {activeGlobalElement && activeCellId && activeComponentIndex === null && (
-                                    <div style={{ padding: '20px', background: 'rgba(123, 97, 255, 0.05)', borderRadius: '16px', border: '1px solid rgba(123, 97, 255, 0.2)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <Columns size={18} style={{ color: 'var(--noor-secondary)' }} />
-                                            <h4 style={{ fontSize: '0.8rem', fontWeight: 800, color: 'white', margin: 0 }}>Réglages de la Colonne</h4>
-                                        </div>
+                                {activeGlobalElement && activeCellId && (() => {
+                                    const currentLayout = activeGlobalElement === 'header' ? course.playerConfig?.headerLayout : course.playerConfig?.footerLayout;
+                                    const currentCell = currentLayout?.cells?.find(c => c.id === activeCellId) || { span: 3, alignment: 'left' };
 
-                                        <div>
-                                            <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Largeur (Grille de 12)</label>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <input
-                                                    type="range" min="1" max="12" step="1"
-                                                    value={getInspectorTarget().span || 3}
-                                                    onChange={(e) => getInspectorUpdateFn()({ span: parseInt(e.target.value) })}
-                                                    style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
-                                                />
-                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--noor-secondary)', minWidth: '30px', textAlign: 'right' }}>{getInspectorTarget().span || 3}</span>
-                                            </div>
-                                        </div>
+                                    const updateCell = (updates) => {
+                                        const newLayout = { ...(currentLayout || { cells: [] }) };
+                                        newLayout.cells = (newLayout.cells || []).map(c => c.id === activeCellId ? { ...c, ...updates } : c);
+                                        updateCourseMetadata({ playerConfig: { ...course.playerConfig, [activeGlobalElement === 'header' ? 'headerLayout' : 'footerLayout']: newLayout } });
+                                    };
 
-                                        <div>
-                                            <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Alignement du contenu</label>
-                                            <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px' }}>
-                                                <button onClick={() => getInspectorUpdateFn()({ alignment: 'left' })} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: getInspectorTarget().alignment === 'left' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignLeft size={16} style={{ margin: '0 auto' }} /></button>
-                                                <button onClick={() => getInspectorUpdateFn()({ alignment: 'center' })} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: getInspectorTarget().alignment === 'center' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignCenter size={16} style={{ margin: '0 auto' }} /></button>
-                                                <button onClick={() => getInspectorUpdateFn()({ alignment: 'right' })} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: getInspectorTarget().alignment === 'right' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignRight size={16} style={{ margin: '0 auto' }} /></button>
+                                    return (
+                                        <div style={{ padding: '20px', background: 'rgba(123, 97, 255, 0.05)', borderRadius: '16px', border: '1px solid rgba(123, 97, 255, 0.2)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <Columns size={18} style={{ color: 'var(--noor-secondary)' }} />
+                                                <h4 style={{ fontSize: '0.8rem', fontWeight: 800, color: 'white', margin: 0 }}>Réglages de la Colonne</h4>
                                             </div>
+
+                                            <div>
+                                                <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Largeur (Grille de 12)</label>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <input
+                                                        type="range" min="1" max="12" step="1"
+                                                        value={currentCell.span || 3}
+                                                        onChange={(e) => updateCell({ span: parseInt(e.target.value) })}
+                                                        style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
+                                                    />
+                                                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--noor-secondary)', minWidth: '30px', textAlign: 'right' }}>{currentCell.span || 3}</span>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Alignement du contenu</label>
+                                                <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px' }}>
+                                                    <button onClick={() => updateCell({ alignment: 'left' })} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: currentCell.alignment === 'left' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignLeft size={16} style={{ margin: '0 auto' }} /></button>
+                                                    <button onClick={() => updateCell({ alignment: 'center' })} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: currentCell.alignment === 'center' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignCenter size={16} style={{ margin: '0 auto' }} /></button>
+                                                    <button onClick={() => updateCell({ alignment: 'right' })} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: currentCell.alignment === 'right' ? 'var(--noor-secondary)' : 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}><AlignRight size={16} style={{ margin: '0 auto' }} /></button>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => setGlobalCompModal({ isOpen: true, type: activeGlobalElement, cellId: activeCellId })}
+                                                className="btn-primary"
+                                                style={{ width: '100%', borderRadius: '12px', padding: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '10px' }}
+                                            >
+                                                <Plus size={16} /> Ajouter un composant
+                                            </button>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
                                 {/* Restore Cell Selector for Components */}
                                 {activeGlobalElement && activeComponentIndex !== null && (
@@ -1446,8 +1360,8 @@ const CourseEditor = () => {
                                             <option value="">(Aucune cellule)</option>
                                             {(activeGlobalElement === 'header'
                                                 ? course.playerConfig?.headerLayout
-                                                : course.playerConfig?.footerLayout)?.cells?.map(cell => (
-                                                    <option key={cell.id} value={cell.id}>Col {cell.id.replace('h-cell-', '').replace('f-cell-', '')} (Span {cell.span})</option>
+                                                : course.playerConfig?.footerLayout)?.cells?.map((cell, cIdx) => (
+                                                    <option key={cell.id || cIdx} value={cell.id}>Col {cell.id?.replace('h-cell-', '').replace('f-cell-', '') || (cIdx + 1)} (Span {cell.span})</option>
                                                 ))}
                                         </select>
                                     </div>
@@ -1457,6 +1371,7 @@ const CourseEditor = () => {
                                 {(() => {
                                     const target = getInspectorTarget();
                                     const updateFn = getInspectorUpdateFn();
+                                    if (!target) return null;
                                     switch (target.type) {
                                         case 'SPLASH':
                                             return (
@@ -1477,7 +1392,6 @@ const CourseEditor = () => {
                                                         }}><Upload size={14} /></button>
                                                     </div>
 
-                                                    {/* Text Style Editor */}
                                                     <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
                                                         <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Styles de texte</label>
                                                         <TextStyleEditor
@@ -1492,7 +1406,6 @@ const CourseEditor = () => {
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                     <textarea className="input-field" rows={8} placeholder="Texte..." value={target.content || ''} onChange={(e) => updateFn({ content: e.target.value })} />
 
-                                                    {/* Text Style Editor */}
                                                     <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
                                                         <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Styles de texte</label>
                                                         <TextStyleEditor
@@ -1505,138 +1418,211 @@ const CourseEditor = () => {
                                         case 'CHOICE':
                                         case 'CHOICE_MULTI':
                                             return (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                    <input className="input-field" placeholder="Consigne" value={target.instruction || ''} onChange={(e) => updateFn({ instruction: e.target.value })} />
-                                                    {(target.options || []).map((opt, i) => (
-                                                        <div key={i} style={{ display: 'flex', gap: '6px' }}>
-                                                            <input type="checkbox" checked={opt.isCorrect} onChange={(e) => {
-                                                                const newOpts = [...target.options]; newOpts[i].isCorrect = e.target.checked; updateFn({ options: newOpts });
-                                                            }} />
-                                                            <input className="input-field" value={opt.text} style={{ flex: 1, fontSize: '0.75rem' }} onChange={(e) => {
-                                                                const newOpts = [...target.options]; newOpts[i].text = e.target.value; updateFn({ options: newOpts });
-                                                            }} />
-                                                            <button onClick={() => updateFn({ options: target.options.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--noor-accent)' }}><X size={12} /></button>
-                                                        </div>
-                                                    ))}
-                                                    <button className="btn-secondary" onClick={() => updateFn({ options: [...(target.options || []), { text: '', isCorrect: false }] })}>+ Ajouter Option</button>
-                                                </div>
-                                            );
-                                        case 'VIDEO':
-                                            return (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                    <select className="input-field" value={target.videoType || 'youtube'} onChange={(e) => updateFn({ videoType: e.target.value })}>
-                                                        <option value="youtube">YouTube</option>
-                                                        <option value="direct">Lien Direct</option>
-                                                    </select>
-                                                    <input className="input-field" placeholder="URL" value={target.url || ''} onChange={(e) => updateFn({ url: e.target.value })} />
-                                                </div>
-                                            );
-                                        case 'ANIMATED_LOGO':
-                                            return (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Taille du logo</label>
-                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <input
-                                                            type="range"
-                                                            min="20"
-                                                            max="200"
-                                                            value={target.size || 40}
-                                                            onChange={(e) => updateFn({ size: parseInt(e.target.value) })}
-                                                            style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
-                                                        />
-                                                        <input
-                                                            type="number"
-                                                            className="input-field"
-                                                            value={target.size || 40}
-                                                            onChange={(e) => updateFn({ size: parseInt(e.target.value) || 20 })}
-                                                            style={{ width: '60px', padding: '8px', textAlign: 'center' }}
-                                                        />
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Question / Instruction</label>
+                                                        <input className="input-field" value={target.instruction || ''} onChange={(e) => updateFn({ instruction: e.target.value })} placeholder="Quelle est la question ?" />
+                                                    </div>
+                                                    <div style={{ paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'white', marginBottom: '12px', display: 'block' }}>Options de réponse</label>
+                                                        {(target.options || []).map((opt, i) => (
+                                                            <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                                                <input type="checkbox" checked={opt.isCorrect} onChange={(e) => {
+                                                                    const newOpts = [...target.options];
+                                                                    if (target.type === 'CHOICE') newOpts.forEach(o => o.isCorrect = false);
+                                                                    newOpts[i].isCorrect = e.target.checked;
+                                                                    updateFn({ options: newOpts });
+                                                                }} />
+                                                                <input className="input-field" style={{ flex: 1, fontSize: '0.8rem', height: '32px' }} value={opt.text} onChange={(e) => {
+                                                                    const newOpts = [...target.options];
+                                                                    newOpts[i].text = e.target.value;
+                                                                    updateFn({ options: newOpts });
+                                                                }} />
+                                                                <button onClick={() => updateFn({ options: target.options.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer' }}><X size={14} /></button>
+                                                            </div>
+                                                        ))}
+                                                        <button className="btn-secondary" onClick={() => updateFn({ options: [...(target.options || []), { text: '', isCorrect: false }] })} style={{ width: '100%', marginTop: '8px' }}><Plus size={14} /> Ajouter une option</button>
                                                     </div>
                                                 </div>
                                             );
+
+                                        case 'VIDEO':
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Source Vidéo</label>
+                                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                                                            <button onClick={() => updateFn({ videoType: 'youtube' })} style={{ flex: 1, padding: '8px', fontSize: '0.7rem', borderRadius: '8px', background: target.videoType === 'youtube' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>YouTube</button>
+                                                            <button onClick={() => updateFn({ videoType: 'url' })} style={{ flex: 1, padding: '8px', fontSize: '0.7rem', borderRadius: '8px', background: target.videoType === 'url' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>Direct MP4</button>
+                                                        </div>
+                                                        <input className="input-field" value={target.url || ''} onChange={(e) => updateFn({ url: e.target.value })} placeholder="URL de la vidéo..." />
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'ANIMATED_LOGO':
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Réglages Logo</label>
+                                                        <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Taille ({target.size || 40}px)</label>
+                                                        <input type="range" min="20" max="200" value={target.size || 40} onChange={(e) => updateFn({ size: parseInt(e.target.value) })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                    </div>
+                                                </div>
+                                            );
+
                                         case 'GAMEMEMO':
                                             return (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                                    <input className="input-field" placeholder="Consigne" value={target.text || ''} onChange={(e) => updateFn({ text: e.target.value })} />
-
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', display: 'block' }}>Grille du Jeu</label>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                                         <div>
-                                                            <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Colonnes</label>
-                                                            <input type="number" className="input-field" value={target.gridColumns || 4} onChange={(e) => updateFn({ gridColumns: parseInt(e.target.value) || 4 })} />
+                                                            <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Colonnes ({target.gridColumns || 4})</label>
+                                                            <input type="range" min="2" max="6" value={target.gridColumns || 4} onChange={(e) => updateFn({ gridColumns: parseInt(e.target.value) })} style={{ width: '100%' }} />
                                                         </div>
                                                         <div>
-                                                            <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Lignes (min-content)</label>
-                                                            <input type="number" className="input-field" value={target.gridRows || 3} onChange={(e) => updateFn({ gridRows: parseInt(e.target.value) || 3 })} />
+                                                            <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Lignes ({target.gridRows || 3})</label>
+                                                            <input type="range" min="2" max="6" value={target.gridRows || 3} onChange={(e) => updateFn({ gridRows: parseInt(e.target.value) })} style={{ width: '100%' }} />
                                                         </div>
                                                     </div>
-
-                                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase' }}>Paires ({(target.pairs || []).length})</label>
-
-                                                    {(target.pairs || []).map((pair, i) => (
-                                                        <div key={i} style={{
-                                                            padding: '12px',
-                                                            background: 'rgba(255,255,255,0.03)',
-                                                            borderRadius: '12px',
-                                                            border: '1px solid var(--glass-border)',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: '8px'
-                                                        }}>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <span style={{ fontSize: '0.65rem', fontWeight: 800 }}>Paire {i + 1}</span>
-                                                                <button onClick={() => updateFn({ pairs: target.pairs.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--noor-accent)', cursor: 'pointer' }}><X size={14} /></button>
+                                                    <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '12px' }}>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'white', marginBottom: '12px', display: 'block' }}>Paires ({target.pairs?.length || 0})</label>
+                                                        {(target.pairs || []).map((pair, i) => (
+                                                            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 30px', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                                                <input className="input-field" placeholder="Image URL" value={pair.imageUrl} onChange={(e) => {
+                                                                    const newPairs = [...target.pairs]; newPairs[i].imageUrl = e.target.value; updateFn({ pairs: newPairs });
+                                                                }} />
+                                                                <input className="input-field" placeholder="Texte" value={pair.text} onChange={(e) => {
+                                                                    const newPairs = [...target.pairs]; newPairs[i].text = e.target.value; updateFn({ pairs: newPairs });
+                                                                }} />
+                                                                <button onClick={() => updateFn({ pairs: target.pairs.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: '#ff4757' }}><X size={14} /></button>
                                                             </div>
-
-                                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                                <div style={{
-                                                                    width: '40px',
-                                                                    height: '40px',
-                                                                    borderRadius: '8px',
-                                                                    background: 'rgba(255,255,255,0.05)',
-                                                                    overflow: 'hidden',
-                                                                    flexShrink: 0,
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    cursor: 'pointer',
-                                                                    border: '1px solid var(--glass-border)'
-                                                                }} onClick={async () => {
-                                                                    const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
-                                                                    input.onchange = async (e) => {
-                                                                        const file = e.target.files[0];
-                                                                        if (file) {
-                                                                            const url = await uploadAsset(file);
-                                                                            if (url) {
-                                                                                const newPairs = [...target.pairs];
-                                                                                newPairs[i] = { ...newPairs[i], imageUrl: url };
-                                                                                updateFn({ pairs: newPairs });
-                                                                            }
-                                                                        }
-                                                                    };
-                                                                    input.click();
-                                                                }}>
-                                                                    {pair.imageUrl ? <img src={pair.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={14} />}
-                                                                </div>
-                                                                <input
-                                                                    className="input-field"
-                                                                    placeholder="Texte de la carte"
-                                                                    style={{ fontSize: '0.8rem', padding: '8px' }}
-                                                                    value={pair.text || ''}
-                                                                    onChange={(e) => {
-                                                                        const newPairs = [...target.pairs];
-                                                                        newPairs[i] = { ...newPairs[i], text: e.target.value };
-                                                                        updateFn({ pairs: newPairs });
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ))}
-
+                                                        ))}
+                                                    </div>
                                                     <button className="btn-secondary" onClick={() => updateFn({ pairs: [...(target.pairs || []), { imageUrl: '', text: '' }] })}>
                                                         <Plus size={14} /> Ajouter une Paire
                                                     </button>
                                                 </div>
                                             );
+
+                                        case 'PREV_BUTTON':
+                                        case 'NEXT_BUTTON':
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
+                                                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Contenu du Bouton</label>
+                                                        <div style={{ marginBottom: '16px' }}>
+                                                            <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Action de navigation</label>
+                                                            <select
+                                                                className="input-field"
+                                                                value={target.navigationAction || (target.type === 'PREV_BUTTON' ? 'PREVIOUS' : 'NEXT')}
+                                                                onChange={(e) => updateFn({ navigationAction: e.target.value })}
+                                                                style={{ height: '32px', fontSize: '0.8rem' }}
+                                                            >
+                                                                <option value="PREVIOUS">Page Précédente</option>
+                                                                <option value="NEXT">Page Suivante</option>
+                                                                <option value="START">Aller au Début</option>
+                                                                <option value="END">Aller à la Fin</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div style={{ marginBottom: '16px' }}>
+                                                            <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Texte du bouton</label>
+                                                            <input
+                                                                className="input-field"
+                                                                value={target.label || ''}
+                                                                onChange={(e) => updateFn({ label: e.target.value })}
+                                                                placeholder={target.navigationAction === 'START' ? 'Début' : target.navigationAction === 'END' ? 'Fin' : target.type === 'PREV_BUTTON' ? 'Précédent' : 'Suivant'}
+                                                                style={{ height: '42px', fontSize: '0.9rem' }}
+                                                            />
+                                                        </div>
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Taille Police ({target.style?.fontSize || 14}px)</label>
+                                                                <input type="range" min="8" max="40" value={target.style?.fontSize || 14} onChange={(e) => updateFn({ style: { ...target.style, fontSize: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                            </div>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Gras ({target.style?.fontWeight || 600})</label>
+                                                                <select
+                                                                    className="input-field"
+                                                                    value={target.style?.fontWeight || 600}
+                                                                    onChange={(e) => updateFn({ style: { ...target.style, fontWeight: parseInt(e.target.value) } })}
+                                                                    style={{ height: '32px', fontSize: '0.8rem', padding: '0 8px' }}
+                                                                >
+                                                                    <option value="400">Normal</option>
+                                                                    <option value="600">Semi-gras</option>
+                                                                    <option value="800">Extra-gras</option>
+                                                                    <option value="900">Black</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Apparence du Bouton</label>
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Fond</label>
+                                                                <ColorPicker color={target.style?.backgroundColor || 'transparent'} onChange={(c) => updateFn({ style: { ...target.style, backgroundColor: c } })} />
+                                                            </div>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Icône / Texte</label>
+                                                                <ColorPicker color={target.style?.color || 'white'} onChange={(c) => updateFn({ style: { ...target.style, color: c } })} />
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Arrondi ({target.style?.borderRadius || 0}px)</label>
+                                                                <input type="range" min="0" max="30" step="2" value={parseInt(target.style?.borderRadius || 0)} onChange={(e) => updateFn({ style: { ...target.style, borderRadius: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                            </div>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Padding ({target.style?.padding || 8}px)</label>
+                                                                <input type="range" min="0" max="24" step="2" value={parseInt(target.style?.padding || 8)} onChange={(e) => updateFn({ style: { ...target.style, padding: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Largeur Min ({target.style?.minWidth || 100}px)</label>
+                                                                <input type="range" min="40" max="300" step="10" value={parseInt(target.style?.minWidth || 100)} onChange={(e) => updateFn({ style: { ...target.style, minWidth: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                            </div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px' }}>
+                                                                <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>Étendre (Stretch)</span>
+                                                                <input type="checkbox" checked={target.style?.flex === 1} onChange={(e) => updateFn({ style: { ...target.style, flex: e.target.checked ? 1 : 'none', width: e.target.checked ? '100%' : 'fit-content' } })} />
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Taille Icône ({target.style?.iconSize || 16}px)</label>
+                                                                <input type="range" min="10" max="32" value={target.style?.iconSize || 16} onChange={(e) => updateFn({ style: { ...target.style, iconSize: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                            </div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px' }}>
+                                                                <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>Masquer l'icône</span>
+                                                                <input type="checkbox" checked={target.style?.hideIcon || false} onChange={(e) => updateFn({ style: { ...target.style, hideIcon: e.target.checked } })} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Bordure</label>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Couleur Bordure</label>
+                                                                <ColorPicker color={target.style?.borderColor || 'transparent'} onChange={(c) => updateFn({ style: { ...target.style, borderColor: c, borderWidth: target.style?.borderWidth || 1, borderStyle: 'solid' } })} />
+                                                            </div>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Épaisseur ({target.style?.borderWidth || 0}px)</label>
+                                                                <input type="range" min="0" max="10" step="1" value={parseInt(target.style?.borderWidth || 0)} onChange={(e) => updateFn({ style: { ...target.style, borderWidth: parseInt(e.target.value), borderStyle: 'solid' } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+
                                         case 'COURSE_TITLE':
                                         case 'PROGRESS_BAR':
                                         case 'SLIDE_COUNTER':
@@ -1679,13 +1665,14 @@ const CourseEditor = () => {
                                                     </div>
                                                 </div>
                                             );
+
                                         default:
                                             return <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Utilisez l'explorateur pour gérer le contenu complexe.</p>;
                                     }
                                 })()}
 
                                 {/* BLOCK SPECIFIC STYLE (Columns, etc) */}
-                                {activeBlockIndex !== null && activeComponentIndex === null && (
+                                {activeBlock && activeBlockIndex !== null && activeComponentIndex === null && !activeGlobalElement && (
                                     <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                         <h5 style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase' }}>Mise en page & Style</h5>
 
@@ -1693,15 +1680,15 @@ const CourseEditor = () => {
                                             <div>
                                                 <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Disposition</label>
                                                 <div style={{ display: 'flex', gap: '4px' }}>
-                                                    <button onClick={() => updateActiveBlock({ style: { ...activeBlock.style, flexDirection: 'column' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock.style?.flexDirection !== 'row' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>Vertical</button>
-                                                    <button onClick={() => updateActiveBlock({ style: { ...activeBlock.style, flexDirection: 'row' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock.style?.flexDirection === 'row' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>Horizontal</button>
+                                                    <button onClick={() => updateActiveBlock({ style: { ...(activeBlock?.style || {}), flexDirection: 'column' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock?.style?.flexDirection !== 'row' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>Vertical</button>
+                                                    <button onClick={() => updateActiveBlock({ style: { ...(activeBlock?.style || {}), flexDirection: 'row' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock?.style?.flexDirection === 'row' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>Horizontal</button>
                                                 </div>
                                             </div>
                                             <div>
                                                 <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Direction</label>
                                                 <div style={{ display: 'flex', gap: '4px' }}>
-                                                    <button onClick={() => updateActiveBlock({ style: { ...activeBlock.style, direction: 'ltr' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock.style?.direction !== 'rtl' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>LTR</button>
-                                                    <button onClick={() => updateActiveBlock({ style: { ...activeBlock.style, direction: 'rtl' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock.style?.direction === 'rtl' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>RTL (Ar)</button>
+                                                    <button onClick={() => updateActiveBlock({ style: { ...(activeBlock?.style || {}), direction: 'ltr' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock?.style?.direction !== 'rtl' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>LTR</button>
+                                                    <button onClick={() => updateActiveBlock({ style: { ...(activeBlock?.style || {}), direction: 'rtl' } })} style={{ flex: 1, padding: '6px', fontSize: '0.6rem', borderRadius: '8px', background: activeBlock?.style?.direction === 'rtl' ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>RTL (Ar)</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1713,7 +1700,7 @@ const CourseEditor = () => {
                                                     className="input-field"
                                                     style={{ fontSize: '0.75rem', height: '36px' }}
                                                     value={activeBlock.style?.justifyContent || 'start'}
-                                                    onChange={(e) => updateActiveBlock({ style: { ...activeBlock.style, justifyContent: e.target.value } })}
+                                                    onChange={(e) => updateActiveBlock({ style: { ...(activeBlock.style || {}), justifyContent: e.target.value } })}
                                                 >
                                                     <option value="start">Début</option>
                                                     <option value="center">Centre</option>
@@ -1729,7 +1716,7 @@ const CourseEditor = () => {
                                                 <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Largeur (Colonnes)</label>
                                                 <div style={{ display: 'flex', gap: '4px' }}>
                                                     {[4, 6, 8, 12].map(col => (
-                                                        <button key={col} onClick={() => updateActiveBlock({ style: { ...activeBlock.style, columns: col } })} style={{ flex: 1, padding: '6px', fontSize: '0.7rem', borderRadius: '8px', background: activeBlock?.style?.columns === col ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>{col}</button>
+                                                        <button key={col} onClick={() => updateActiveBlock({ style: { ...(activeBlock.style || {}), columns: col } })} style={{ flex: 1, padding: '6px', fontSize: '0.7rem', borderRadius: '8px', background: activeBlock.style?.columns === col ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white' }}>{col}</button>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1740,19 +1727,19 @@ const CourseEditor = () => {
                                                     className="input-field"
                                                     style={{ height: '32px', fontSize: '0.8rem' }}
                                                     value={activeBlock.style?.minHeight || ''}
-                                                    onChange={(e) => updateActiveBlock({ style: { ...activeBlock.style, minHeight: parseInt(e.target.value) || 0 } })}
+                                                    onChange={(e) => updateActiveBlock({ style: { ...(activeBlock.style || {}), minHeight: parseInt(e.target.value) || 0 } })}
                                                 />
                                             </div>
                                         </div>
 
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                             <div>
-                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>Padding <span>{activeBlock?.style?.padding || 0}px</span></label>
-                                                <input type="range" min="0" max="64" step="4" value={activeBlock?.style?.padding || 0} onChange={(e) => updateActiveBlock({ style: { ...activeBlock.style, padding: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>Padding <span>{activeBlock.style?.padding || 0}px</span></label>
+                                                <input type="range" min="0" max="64" step="4" value={activeBlock.style?.padding || 0} onChange={(e) => updateActiveBlock({ style: { ...(activeBlock.style || {}), padding: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
                                             </div>
                                             <div>
-                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>Marge <span>{activeBlock?.style?.margin || 16}px</span></label>
-                                                <input type="range" min="0" max="64" step="4" value={activeBlock?.style?.margin || 16} onChange={(e) => updateActiveBlock({ style: { ...activeBlock.style, margin: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
+                                                <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>Marge <span>{activeBlock.style?.margin || 16}px</span></label>
+                                                <input type="range" min="0" max="64" step="4" value={activeBlock.style?.margin || 16} onChange={(e) => updateActiveBlock({ style: { ...(activeBlock.style || {}), margin: parseInt(e.target.value) } })} style={{ width: '100%', accentColor: 'var(--noor-secondary)' }} />
                                             </div>
                                         </div>
 
@@ -1945,10 +1932,10 @@ const CourseEditor = () => {
                         )}
                     </div>
                 </aside>
-            </div>
+            </div >
 
             {/* MODAL SETTINGS */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {showCourseSettings && (
                     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCourseSettings(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }} />
@@ -2283,8 +2270,8 @@ const CourseEditor = () => {
                         setGlobalCompModal({ isOpen: false, type: null, cellId: null });
                     }}
                 />
-            </AnimatePresence>
-        </div>
+            </AnimatePresence >
+        </div >
     );
 };
 
