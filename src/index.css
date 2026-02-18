@@ -1,13 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Cairo:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Noor Education Palette - Authoring Edition */
-  --noor-primary: #4834d4;
-  --noor-secondary: #7b61ff;
-  --noor-accent: #ff4757;
+  /* Noor Education Palette - Official Brand Colors */
+  --noor-primary: #4B4B9D;   /* Purple identity */
+  --noor-secondary: #0077B6; /* Blue secondary */
+  --noor-accent: #E91E63;    /* Pink highlight */
+  --noor-warning: #FFC107;   /* Yellow curiosity */
   --noor-success: #2ed573;
-  --noor-warning: #ffa502;
-  --noor-purple: #6c5ce7;
+  --noor-purple: #4B4B9D;
 
   /* Modern Dark Theme */
   --bg-primary: #0a0c1a;
@@ -44,7 +44,15 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+}
+
+h1, h2, h3, h4, .fredoka {
+  font-family: 'Fredoka', sans-serif;
+}
+
+[dir="rtl"] {
+  font-family: 'Cairo', sans-serif;
 }
 
 body {

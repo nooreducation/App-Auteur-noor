@@ -1,0 +1,16 @@
+﻿
+H:\Antigravity\App Auteur noor\src\pages\CourseEditor.jsx
+    2:10  error    'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                 no-unused-vars
+  137:9   error    'updateBlock' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                   no-unused-vars
+  140:9   error    'updateComponent' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                               no-unused-vars
+  145:9   error    'reorderBlocks' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                 no-unused-vars
+  150:9   error    'setPreviewMode' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                no-unused-vars
+  157:9   error    'reorderSlides' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                 no-unused-vars
+  169:8   warning  React Hook useEffect has a missing dependency: 'fetchCategories'. Either include it or remove the dependency array                            react-hooks/exhaustive-deps
+  183:8   warning  React Hook useEffect has missing dependencies: 'course' and 'setActiveSlideIndex'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
+  197:8   warning  React Hook useEffect has a missing dependency: 'setCourse'. Either include it or remove the dependency array                                  react-hooks/exhaustive-deps
+  205:8   warning  React Hook useEffect has missing dependencies: 'course.slides' and 'setActiveSlideIndex'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  205:9   warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked      react-hooks/exhaustive-deps
+
+Ô£û 11 problems (6 errors, 5 warnings)
+

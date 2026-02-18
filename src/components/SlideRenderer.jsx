@@ -614,6 +614,155 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
             }
 
             case 'CHOICE_MULTI':
+            case 'COMPOSITE_QUIZ': {
+                const parts = component.parts || [];
+                const direction = component.direction || 'rtl';
+                return (
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '850px',
+                        margin: '0 auto',
+                        background: 'white',
+                        padding: '40px',
+                        borderRadius: '20px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                        borderTop: '8px solid #e67e22',
+                        direction: 'rtl',
+                        color: '#2c3e50'
+                    }}>
+                        {parts.map((part, pIdx) => (
+                            <div key={pIdx} style={{ marginBottom: '30px' }}>
+                                {/* Bandeau de consigne style Noor */}
+                                <div style={{
+                                    background: '#fef5ec',
+                                    padding: '15px 20px',
+                                    borderRight: '5px solid #e67e22',
+                                    fontWeight: 'bold',
+                                    fontSize: '1.2rem',
+                                    marginBottom: '20px',
+                                    textAlign: 'right'
+                                }}>
+                                    {part.type === 'CHOICE' ? "أُجِيبُ بِـ نَعَمْ أَوْ لاَ:" : "أَنْقُرُ عَلَى القَرِينَة الَّتِي تَدُلُّ عَلَى ذَلِكَ :"}
+                                </div>
+
+                                {(part.type === 'CHOICE' || part.type === 'CHOICE_IMAGE' || part.type === 'TRUE_FALSE' || part.type === 'TRUE_FALSE_IMAGE') && (
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        background: '#fff',
+                                        padding: '25px',
+                                        border: '1px solid #eee',
+                                        borderRadius: '15px',
+                                        marginBottom: '10px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                            {(part.type === 'CHOICE_IMAGE' || part.type === 'TRUE_FALSE_IMAGE') && part.image && (
+                                                <img src={part.image} style={{ height: '80px', borderRadius: '10px', objectFit: 'contain' }} alt="media" />
+                                            )}
+                                            <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>{part.text}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '15px' }}>
+                                            {(part.options || []).map((opt, oIdx) => {
+                                                const isSelected = (userAnswers.choiceSelections?.[pIdx] === oIdx);
+                                                const showCorrect = isAnswered && opt.isCorrect;
+                                                const showWrong = isAnswered && isSelected && !opt.isCorrect;
+                                                return (
+                                                    <button
+                                                        key={oIdx}
+                                                        onClick={() => {
+                                                            if (isAnswered) return;
+                                                            const newSels = { ...userAnswers.choiceSelections, [pIdx]: oIdx };
+                                                            setUserAnswers({ ...userAnswers, choiceSelections: newSels });
+                                                        }}
+                                                        style={{
+                                                            padding: '12px 35px', borderRadius: '10px', fontSize: '1.1rem', fontWeight: 800, cursor: isAnswered ? 'default' : 'pointer',
+                                                            background: showCorrect ? '#27ae60' : showWrong ? '#ff4757' : isSelected ? '#e67e22' : 'white',
+                                                            color: isSelected || showCorrect || showWrong ? 'white' : '#777',
+                                                            border: `2px solid ${isSelected ? '#e67e22' : '#ddd'}`,
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        {opt.text}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {part.type === 'TEXT_SELECT' && (
+                                    <div style={{
+                                        padding: '30px',
+                                        borderRadius: '15px',
+                                        border: '2px dashed #ddd',
+                                        background: '#fafafa',
+                                        fontSize: '1.6rem',
+                                        lineHeight: '2.8',
+                                        fontFamily: 'Segoe UI, Tahoma, sans-serif',
+                                        textAlign: 'right'
+                                    }}>
+                                        {(part.segments || []).map((seg, sIdx) => {
+                                            if (seg.type === 'text') return <span key={sIdx}>{seg.content}</span>;
+                                            const isSelected = (userAnswers.textSelections?.[pIdx] || []).includes(sIdx);
+                                            const isCorrect = isAnswered && seg.isCorrect;
+                                            const isWrong = isAnswered && isSelected && !seg.isCorrect;
+                                            return (
+                                                <span
+                                                    key={sIdx}
+                                                    onClick={() => {
+                                                        if (isAnswered) return;
+                                                        const current = userAnswers.textSelections?.[pIdx] || [];
+                                                        const next = current.includes(sIdx) ? current.filter(x => x !== sIdx) : [...current, sIdx];
+                                                        setUserAnswers({ ...userAnswers, textSelections: { ...userAnswers.textSelections, [pIdx]: next } });
+                                                    }}
+                                                    style={{
+                                                        padding: '2px 6px', borderRadius: '6px', cursor: isAnswered ? 'default' : 'pointer',
+                                                        background: isCorrect ? 'rgba(39, 174, 96, 0.2)' : isWrong ? 'rgba(255, 71, 87, 0.2)' : isSelected ? '#ffeaa7' : 'transparent',
+                                                        color: isCorrect ? '#27ae60' : isWrong ? '#ff4757' : isSelected ? '#d35400' : 'inherit',
+                                                        fontWeight: isSelected ? 'bold' : 'normal',
+                                                        transition: 'all 0.1s'
+                                                    }}
+                                                >
+                                                    {seg.content}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        <div style={{ textAlign: 'center', marginTop: '30px' }}>
+                            <button
+                                onClick={() => {
+                                    if (isAnswered) {
+                                        setIsAnswered(false);
+                                        setUserAnswers({});
+                                    } else {
+                                        setIsAnswered(true);
+                                    }
+                                }}
+                                style={{
+                                    background: '#27ae60',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '15px 60px',
+                                    fontSize: '1.4rem',
+                                    borderRadius: '50px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 5px 15px rgba(39, 174, 96, 0.3)',
+                                    transition: 'transform 0.2s'
+                                }}
+                            >
+                                {isAnswered ? "إعادة المحاولة" : "تأكيد الإجابة"}
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
             case 'CHOICE': {
                 const isMulti = component.type === 'CHOICE_MULTI';
                 return (
@@ -664,6 +813,67 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                     </div>
                 );
             }
+
+            case 'TEXT_SELECT': {
+                const segments = component.segments || [];
+                const selectedSegments = userAnswers.selected || [];
+                const direction = component.direction || 'rtl';
+                return (
+                    <div style={{ width: '100%', direction: direction }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                            <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(123, 97, 255, 0.1)' }}>
+                                <Type size={18} style={{ color: 'var(--noor-secondary)' }} />
+                            </div>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{component.instruction || "Sélectionnez les parties correctes"}</h3>
+                        </div>
+                        <div style={{
+                            background: 'rgba(255,255,255,0.01)',
+                            padding: '24px',
+                            borderRadius: '18px',
+                            border: '1px solid var(--glass-border)',
+                            fontSize: '1.2rem',
+                            lineHeight: '2.5',
+                            fontFamily: 'Outfit, sans-serif'
+                        }}>
+                            {segments.map((seg, i) => {
+                                if (seg.type === 'text') {
+                                    return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{seg.content}</span>;
+                                }
+                                const isSelected = selectedSegments.includes(i);
+                                const isCorrect = isAnswered && seg.isCorrect;
+                                const isWrong = isAnswered && isSelected && !seg.isCorrect;
+
+                                return (
+                                    <span
+                                        key={i}
+                                        onClick={() => {
+                                            if (isAnswered) return;
+                                            const newSelected = isSelected
+                                                ? selectedSegments.filter(idx => idx !== i)
+                                                : [...selectedSegments, i];
+                                            setUserAnswers({ ...userAnswers, selected: newSelected });
+                                        }}
+                                        style={{
+                                            padding: '4px 8px',
+                                            margin: '0 2px',
+                                            borderRadius: '6px',
+                                            cursor: isAnswered ? 'default' : 'pointer',
+                                            background: isCorrect ? 'rgba(46, 213, 115, 0.2)' : isWrong ? 'rgba(255, 71, 87, 0.2)' : isSelected ? 'rgba(123, 97, 255, 0.2)' : 'rgba(255,255,255,0.05)',
+                                            borderBottom: `2px solid ${isCorrect ? '#2ed573' : isWrong ? '#ff4757' : isSelected ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.1)'}`,
+                                            color: isCorrect ? '#2ed573' : isWrong ? '#ff4757' : 'white',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {seg.content}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                        {renderActionButtons()}
+                    </div>
+                );
+            }
+
 
             case 'TRUE_FALSE':
                 return (
@@ -753,59 +963,6 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                 );
             }
 
-            case 'DROPDOWN_TEXT': {
-                const ddParts = (component.content || "").split(/(\[[^\]]+\])/g);
-                return (
-                    <div style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                            <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(123, 97, 255, 0.1)' }}>
-                                <Sliders size={18} style={{ color: 'var(--noor-secondary)' }} />
-                            </div>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{component.instruction || "Choisissez la bonne option"}</h3>
-                        </div>
-                        <div style={{ background: 'rgba(255,255,255,0.01)', padding: '24px', borderRadius: '18px', border: '1px solid var(--glass-border)', fontSize: '1.1rem', lineHeight: '2.4' }}>
-                            {ddParts.map((part, i) => {
-                                if (part.startsWith('[') && part.endsWith(']')) {
-                                    const options = part.slice(1, -1).split('|');
-                                    const correctAnswer = options[0];
-                                    const shuffled = interactionState[i] || options.sort(() => Math.random() - 0.5);
-                                    if (!interactionState[i]) setInteractionState(prev => ({ ...prev, [i]: shuffled }));
-
-                                    const userVal = userAnswers[i] || '';
-                                    const isCorrect = userVal === correctAnswer;
-
-                                    return (
-                                        <select
-                                            key={i}
-                                            disabled={isAnswered}
-                                            value={userVal}
-                                            onChange={(e) => setUserAnswers({ ...userAnswers, [i]: e.target.value })}
-                                            style={{
-                                                margin: '0 6px',
-                                                padding: '4px 12px',
-                                                borderRadius: '10px',
-                                                background: 'rgba(255,255,255,0.06)',
-                                                border: `1px solid ${isAnswered ? (isCorrect ? '#2ed573' : '#ff4757') : 'var(--glass-border)'}`,
-                                                color: isAnswered ? (isCorrect ? '#2ed573' : '#ff4757') : 'white',
-                                                fontWeight: 700,
-                                                outline: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '1rem'
-                                            }}
-                                        >
-                                            <option value="">...</option>
-                                            {shuffled.map(o => <option key={o} value={o}>{o}</option>)}
-                                        </select>
-                                    );
-                                }
-                                return <span key={i}>{part}</span>;
-                            })}
-                        </div>
-                        {renderActionButtons()}
-                    </div>
-                );
-            }
-
 
             case 'DRAG_DROP': {
                 const ddItems = component.items || [];
@@ -875,9 +1032,11 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
             case 'DROPDOWN_TEXT': {
                 const sentences = component.sentences || [];
                 const currentAnswers = userAnswers.answers || {};
+                const direction = component.direction || 'rtl';
+                const isRTL = direction === 'rtl';
 
                 return (
-                    <div style={{ width: '100%', direction: 'rtl', textAlign: 'right', padding: '20px' }}>
+                    <div style={{ width: '100%', direction: direction, textAlign: isRTL ? 'right' : 'left', padding: '20px' }}>
                         {/* Header with blue underline */}
                         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                             <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', marginBottom: '16px', fontFamily: 'Outfit, sans-serif' }}>
@@ -1536,16 +1695,27 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                 const rightItems = component.right || [];
                 const activeLeft = userAnswers.activeLeft !== undefined ? userAnswers.activeLeft : null;
                 const connections = userAnswers.connections || [];
+                const direction = component.direction || 'rtl';
+                const isRTL = direction === 'rtl';
+
+                const renderItem = (content) => {
+                    if (!content) return "";
+                    const isMedia = content.startsWith('blob:') || content.startsWith('http') || content.match(/\.(png|jpg|jpeg|svg|webp|gif)/i);
+                    if (isMedia) {
+                        return <img src={content} alt="Media" style={{ maxHeight: '80px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }} />;
+                    }
+                    return content;
+                };
 
                 return (
-                    <div style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                    <div style={{ width: '100%', direction: direction }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', justifyContent: isRTL ? 'flex-start' : 'flex-start' }}>
                             <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(123, 97, 255, 0.1)' }}>
                                 <Share2 size={18} style={{ color: 'var(--noor-secondary)' }} />
                             </div>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{component.instruction || "Reliez les éléments correspondants"}</h3>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{component.instruction || (isRTL ? "Reliez les éléments correspondants" : "Match the corresponding elements")}</h3>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', position: 'relative' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', position: 'relative', direction: direction }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {leftItems.map((txt, i) => {
                                     const connected = connections.some(c => c.leftIdx === i);
@@ -1559,7 +1729,7 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                                                     textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, color: 'white', cursor: isAnswered ? 'default' : 'pointer'
                                                 }}
                                             >
-                                                {txt}
+                                                {renderItem(txt)}
                                             </motion.button>
                                             {connected && <div style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--noor-secondary)' }} />}
                                         </div>
@@ -1586,7 +1756,7 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                                                     textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, color: 'white', cursor: isAnswered || activeLeft === null ? 'default' : 'pointer'
                                                 }}
                                             >
-                                                {txt}
+                                                {renderItem(txt)}
                                             </motion.button>
                                             {connected && <div style={{ position: 'absolute', left: '-12px', top: '50%', transform: 'translateY(-50%)', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--noor-secondary)' }} />}
                                         </div>

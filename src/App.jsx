@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Settings from './pages/Settings';
 import SCORMImporter from './pages/SCORMImporter';
 import PreviewPage from './pages/PreviewPage';
+import AdminHome from './pages/AdminHome';
 import useAuthStore from './stores/authStore';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -61,6 +62,18 @@ function App() {
     initialize();
   }, []);
 
+  const HomeRedirect = () => {
+    const { user, loading } = useAuthStore();
+    if (loading) return null;
+    if (!user) return <Navigate to="/login" replace />;
+
+    const admins = ['admin@noor.com', 'khayati.med.ahmed@gmail.com'];
+    const isAdmin = admins.includes(user.email) || user.user_metadata?.role === 'admin';
+
+    if (isAdmin) return <Navigate to="/admin" replace />;
+    return <Navigate to="/dashboard" replace />;
+  };
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
@@ -71,8 +84,9 @@ function App() {
           <Route path="/preview/:courseId/:slideIndex?" element={<ProtectedRoute><PreviewPage /></ProtectedRoute>} />
           <Route path="/course/:courseId/:slideIndex?" element={<ProtectedRoute><PreviewPage isPlayer={true} /></ProtectedRoute>} />
           <Route path="/import" element={<ProtectedRoute><SCORMImporter /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminHome /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<HomeRedirect />} />
         </Routes>
         <Toaster
           position="top-right"

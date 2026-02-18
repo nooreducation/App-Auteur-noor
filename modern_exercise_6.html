@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الذاكرة الذكية - نور التعليمية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --secondary: #a29bfe;
+            --accent: #fd79a8;
+            --success: #00b894;
+            --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --card-front: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            --card-back: #ffffff;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Particles Background Simulation */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 80%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .instruction {
+            background: rgba(108, 92, 231, 0.2);
+            padding: 15px 25px;
+            border-right: 5px solid var(--primary);
+            margin-bottom: 25px;
+            font-weight: 900;
+            font-size: 1.4rem;
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 25px;
+            font-size: 1.1rem;
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-weight: 900;
+            color: var(--secondary);
+            font-size: 1.3rem;
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            perspective: 1000px;
+        }
+
+        @media (max-width: 600px) {
+            .memory-grid { grid-template-columns: repeat(3, 1fr); }
+            .instruction { font-size: 1.1rem; }
+        }
+
+        .card {
+            height: 140px;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 16px;
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+        
+        .card.matched { 
+            animation: pulse-success 0.5s ease;
+            pointer-events: none;
+        }
+
+        @keyframes pulse-success {
+            0% { transform: rotateY(180deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.05); }
+            100% { transform: rotateY(180deg) scale(1); }
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            border: 2px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        .card-front {
+            background: var(--card-front);
+            color: white;
+            font-size: 3rem;
+            font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .card-back {
+            background-color: var(--card-back);
+            color: #2d3436;
+            transform: rotateY(180deg);
+            padding: 10px;
+        }
+
+        .card-back .card-content {
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+
+        .card-back .card-emoji {
+            font-size: 3.5rem;
+        }
+
+        .card.matched .card-back {
+            background-color: var(--success);
+            color: white;
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-family: inherit;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-reset {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 10px 20px -5px rgba(108, 92, 231, 0.5);
+        }
+
+        .btn-reset:hover {
+            transform: translateY(-3px) scale(1.05);
+            background: #5b4cc4;
+        }
+
+        /* Success Overlay */
+        #win-msg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 12, 41, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .win-card {
+            background: white;
+            padding: 40px;
+            border-radius: 30px;
+            color: #2d3436;
+            transform: scale(0.5);
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        #win-msg.show { display: flex; }
+        #win-msg.show .win-card { transform: scale(1); }
+
+        .stars {
+            color: #f1c40f;
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .win-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-wrapper">
+    <div class="game-container">
+        <div class="header">
+            <h1 style="margin: 0 0 15px 0; font-weight: 900; color: var(--secondary);">لعبة الذكاء</h1>
+            <div class="instruction">أربط بين الصورة والكلمة المناسبة</div>
+        </div>
+        
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span style="opacity: 0.7; font-size: 0.8rem;">الأزواج المتبقية</span>
+                <span id="remain" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+                <span style="opacity: 0.7; font-size: 0.8rem;">المحاولات</span>
+                <span id="moves" class="stat-value">0</span>
+            </div>
+        </div>
+
+        <div class="memory-grid" id="grid">
+            <!-- Cards will be injected here -->
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-reset" onclick="resetGame()">
+                <span>🔄</span>
+                إعادة المحاولة
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="win-msg">
+    <div class="win-card">
+        <div class="stars">⭐⭐⭐</div>
+        <div class="win-title">عمل رائع!</div>
+        <p style="font-size: 1.2rem; margin-bottom: 30px;">لقد نجحت في مطابقة جميع الرموز بنجاح.</p>
+        <button class="btn btn-reset" onclick="resetGame()" style="margin: 0 auto;">لعب مرة أخرى</button>
+    </div>
+</div>
+
+<!-- Add Canvas Confetti if available, or simulate with CSS -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script>
+    const items = [
+        { type: 'image', content: '🐎', pairId: 1 },
+        { type: 'text', content: 'حِصَانٌ', pairId: 1 },
+        { type: 'image', content: '🐄', pairId: 2 },
+        { type: 'text', content: 'بَقَرَةٌ', pairId: 2 },
+        { type: 'image', content: '🐑', pairId: 3 },
+        { type: 'text', content: 'خَرُوفٌ', pairId: 3 },
+        { type: 'image', content: '🐕', pairId: 4 },
+        { type: 'text', content: 'كَلْبٌ', pairId: 4 },
+        { type: 'image', content: '🐐', pairId: 5 },
+        { type: 'text', content: 'عَنْزَةٌ', pairId: 5 },
+        { type: 'image', content: '🧈', pairId: 6 },
+        { type: 'text', content: 'زُبْدَةٌ', pairId: 6 }
+    ];
+
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let moves = 0;
+    const totalPairs = items.length / 2;
+
+    function initGame() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        flippedCards = [];
+        matchedPairs = 0;
+        moves = 0;
+        
+        document.getElementById('moves').innerText = '0';
+        document.getElementById('remain').innerText = totalPairs;
+        document.getElementById('win-msg').classList.remove('show');
+
+        // Fisher-Yates Shuffle
+        const shuffled = [...items];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        
+        shuffled.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.pairId = item.pairId;
+            
+            const contentHtml = item.type === 'image' 
+                ? `<span class="card-emoji">${item.content}</span>` 
+                : `<span class="card-content">${item.content}</span>`;
+
+            card.innerHTML = `
+                <div class="card-face card-front">?</div>
+                <div class="card-face card-back">${contentHtml}</div>
+            `;
+            
+            card.onclick = () => flipCard(card);
+            
+            // Staggered animation
+            card.style.opacity = '0';
+            grid.appendChild(card);
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.animation = 'fadeIn 0.5s ease forwards';
+            }, index * 50);
+        });
+    }
+
+    function flipCard(card) {
+        if (flippedCards.length < 2 && !card.classList.contains('flipped') && !card.classList.contains('matched')) {
+            card.classList.add('flipped');
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                moves++;
+                document.getElementById('moves').innerText = moves;
+                checkMatch();
+            }
+        }
+    }
+
+    function checkMatch() {
+        const [c1, c2] = flippedCards;
+        const isMatch = c1.dataset.pairId === c2.dataset.pairId;
+
+        if (isMatch) {
+            setTimeout(() => {
+                c1.classList.add('matched');
+                c2.classList.add('matched');
+                matchedPairs++;
+                document.getElementById('remain').innerText = totalPairs - matchedPairs;
+                flippedCards = [];
+                
+                if (matchedPairs === totalPairs) {
+                    showWin();
+                }
+            }, 300);
+        } else {
+            setTimeout(() => {
+                c1.classList.remove('flipped');
+                c2.classList.remove('flipped');
+                flippedCards = [];
+            }, 1000);
+        }
+    }
+
+    function showWin() {
+        document.getElementById('win-msg').classList.add('show');
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#6c5ce7', '#a29bfe', '#fd79a8', '#00b894']
+            });
+        }
+    }
+
+    function resetGame() {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => card.classList.remove('flipped', 'matched'));
+        setTimeout(initGame, 300);
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>

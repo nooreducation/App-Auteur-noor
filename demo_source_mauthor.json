@@ -1,0 +1,12 @@
+{
+    "raw_module": {
+        "addonId": "Connection",
+        "id": "Conn_123",
+        "properties": {
+            "LeftItems": "Cheval\nVache\nMouton",
+            "RightItems": "حصان\nبقرة\nخروف",
+            "Text": "أربط الحيوان باسمه الصحيح"
+        }
+    },
+    "context": "Ceci est un exemple de donnée brute extraite d'un package SCORM mAuthor."
+}

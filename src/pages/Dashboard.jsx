@@ -26,7 +26,8 @@ import {
     History,
     Trophy,
     Gamepad2,
-    Upload
+    Upload,
+    Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useCourseStore from '../stores/courseStore';
@@ -138,6 +139,16 @@ const Dashboard = () => {
                 <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 32px' }}>
                     {/* Navigation Items */}
                     <div style={{ marginBottom: '24px' }}>
+                        {(userProfile?.role === 'admin' || ['admin@noor.com', 'khayati.med.ahmed@gmail.com'].includes(user?.email)) && (
+                            <div
+                                className="sidebar-item"
+                                onClick={() => navigate('/admin')}
+                                style={{ borderRadius: '14px', marginBottom: '8px', background: 'rgba(72, 52, 212, 0.1)', color: 'var(--noor-secondary)' }}
+                            >
+                                <Activity size={18} />
+                                <span style={{ fontWeight: 800 }}>Admin Home</span>
+                            </div>
+                        )}
                         <div
                             className={`sidebar-item ${!selectedLevel && !selectedSubject ? 'active' : ''}`}
                             onClick={resetSelection}
