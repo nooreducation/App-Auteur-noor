@@ -1,14 +1,25 @@
-import { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import Dashboard from './pages/Dashboard';
-import CourseEditor from './pages/CourseEditor';
-import Login from './pages/Login';
-import Settings from './pages/Settings';
-import SCORMImporter from './pages/SCORMImporter';
-import PreviewPage from './pages/PreviewPage';
-import AdminHome from './pages/AdminHome';
 import useAuthStore from './stores/authStore';
+
+// 🚀 CODE SPLITTING : Chargement asynchrone des composants lourds
+// Au lieu de tout charger d'un coup, on charge ces morceaux de l'app uniquement quand l'utilisateur navigue vers ces pages.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CourseEditor = lazy(() => import('./pages/CourseEditor'));
+const Login = lazy(() => import('./pages/Login'));
+const Settings = lazy(() => import('./pages/Settings'));
+const SCORMImporter = lazy(() => import('./pages/SCORMImporter'));
+const PreviewPage = lazy(() => import('./pages/PreviewPage'));
+const AdminHome = lazy(() => import('./pages/AdminHome'));
+
+// Composant de chargement pendant le téléchargement des "chunks" JS
+const PageLoader = () => (
+  <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0c1a' }}>
+    <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(123, 97, 255, 0.3)', borderTopColor: '#7b61ff', animation: 'spin 1s linear infinite' }} />
+    <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuthStore();
@@ -77,17 +88,19 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/editor" element={<ProtectedRoute><CourseEditor /></ProtectedRoute>} />
-          <Route path="/preview/:courseId/:slideIndex?" element={<ProtectedRoute><PreviewPage /></ProtectedRoute>} />
-          <Route path="/course/:courseId/:slideIndex?" element={<ProtectedRoute><PreviewPage isPlayer={true} /></ProtectedRoute>} />
-          <Route path="/import" element={<ProtectedRoute><SCORMImporter /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute adminOnly><AdminHome /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
-          <Route path="/" element={<HomeRedirect />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/editor" element={<ProtectedRoute><CourseEditor /></ProtectedRoute>} />
+            <Route path="/preview/:courseId/:slideIndex?" element={<ProtectedRoute><PreviewPage /></ProtectedRoute>} />
+            <Route path="/course/:courseId/:slideIndex?" element={<ProtectedRoute><PreviewPage isPlayer={true} /></ProtectedRoute>} />
+            <Route path="/import" element={<ProtectedRoute><SCORMImporter /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute adminOnly><AdminHome /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+            <Route path="/" element={<HomeRedirect />} />
+          </Routes>
+        </Suspense>
         <Toaster
           position="top-right"
           toastOptions={{
