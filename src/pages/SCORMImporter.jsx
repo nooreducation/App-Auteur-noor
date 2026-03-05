@@ -27,7 +27,9 @@ import {
     Tablet,
     Smartphone,
     RefreshCw,
+    Settings as SettingsIcon
 } from 'lucide-react';
+import AnimatedLogo from '../components/AnimatedLogo';
 import JSZip from 'jszip';
 import toast from 'react-hot-toast';
 import useCourseStore from '../stores/courseStore';

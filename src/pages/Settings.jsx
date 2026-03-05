@@ -17,7 +17,8 @@ import {
     Search,
     UserPlus,
     Settings as SettingsIcon,
-    ArrowRight
+    ArrowRight,
+    Activity
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';

@@ -51,7 +51,8 @@ import {
     Columns,
     AlignLeft,
     AlignCenter,
-    AlignRight
+    AlignRight,
+    Settings
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -201,6 +202,8 @@ const CourseEditor = () => {
 
     const [showCourseSettings, setShowCourseSettings] = useState(false);
     const [activeCategory, setActiveCategory] = useState(null);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [activeSettingsTab, setActiveSettingsTab] = useState('info');
     const [showMoveMenu, setShowMoveMenu] = useState(null); // Format: { blockIndex, componentIndex }
     const [globalCompModal, setGlobalCompModal] = useState({ isOpen: false, type: null, cellId: null });
     const [activeCellId, setActiveCellId] = useState(null);
@@ -1090,7 +1093,8 @@ const CourseEditor = () => {
                                                                 >
                                                                     <ComponentRenderer
                                                                         component={element}
-                                                                        isPreview={true}
+                                                                        isPreview={false}
+                                                                        alignment={cell.alignment}
                                                                     />
 
                                                                     <button
@@ -1129,7 +1133,16 @@ const CourseEditor = () => {
                                     );
                                 })()}
 
-                                <div style={{ flex: 1, position: 'relative', overflow: 'auto', padding: activeGlobalElement ? '20px' : '48px', opacity: activeGlobalElement ? 0.3 : 1 }}>
+                                <div style={{
+                                    flex: 1,
+                                    position: 'relative',
+                                    overflow: 'auto',
+                                    paddingTop: `${course.playerConfig?.mainLayout?.paddingTop ?? 40}px`,
+                                    paddingBottom: `${course.playerConfig?.mainLayout?.paddingBottom ?? 40}px`,
+                                    paddingLeft: `${course.playerConfig?.mainLayout?.paddingLeft ?? 16}px`,
+                                    paddingRight: `${course.playerConfig?.mainLayout?.paddingRight ?? 16}px`,
+                                    opacity: activeGlobalElement ? 0.3 : 1
+                                }}>
                                     {!activeGlobalElement && <SlideRenderer slide={activeSlide} isPreview={isPreviewMode} />}
                                 </div>
 
@@ -1223,7 +1236,8 @@ const CourseEditor = () => {
                                                                 >
                                                                     <ComponentRenderer
                                                                         component={element}
-                                                                        isPreview={true}
+                                                                        isPreview={false}
+                                                                        alignment={cell.alignment}
                                                                     />
 
                                                                     <button
@@ -1591,7 +1605,7 @@ const CourseEditor = () => {
                                                             </div>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px' }}>
                                                                 <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>Étendre (Stretch)</span>
-                                                                <input type="checkbox" checked={target.style?.flex === 1} onChange={(e) => updateFn({ style: { ...target.style, flex: e.target.checked ? 1 : 'none', width: e.target.checked ? '100%' : 'fit-content' } })} />
+                                                                <input type="checkbox" checked={target.style?.flex === 1} onChange={(e) => updateFn({ style: { ...target.style, flex: 1, width: '100%' } })} />
                                                             </div>
                                                         </div>
 
@@ -1940,7 +1954,7 @@ const CourseEditor = () => {
                     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCourseSettings(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }} />
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ width: '100%', maxWidth: '550px', maxHeight: '90vh', background: 'var(--bg-secondary)', borderRadius: '32px', border: '1px solid var(--glass-border)', padding: '40px', position: 'relative', zIndex: 1001, boxShadow: '0 30px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <div>
                                     <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '4px' }}>Configuration</h2>
                                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Paramètres globaux du module de cours</p>
@@ -1948,310 +1962,456 @@ const CourseEditor = () => {
                                 <button onClick={() => setShowCourseSettings(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', padding: '10px', borderRadius: '50%', cursor: 'pointer' }}><X size={20} /></button>
                             </div>
 
+                            {/* TABS */}
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                <button
+                                    onClick={() => setActiveSettingsTab('info')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px',
+                                        borderRadius: '12px',
+                                        background: activeSettingsTab === 'info' ? 'var(--noor-secondary)' : 'transparent',
+                                        color: activeSettingsTab === 'info' ? 'white' : 'var(--text-muted)',
+                                        border: 'none',
+                                        fontWeight: 800,
+                                        fontSize: '0.85rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <Settings size={16} /> Généralités
+                                </button>
+                                <button
+                                    onClick={() => setActiveSettingsTab('layout')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px',
+                                        borderRadius: '12px',
+                                        background: activeSettingsTab === 'layout' ? 'var(--noor-secondary)' : 'transparent',
+                                        color: activeSettingsTab === 'layout' ? 'white' : 'var(--text-muted)',
+                                        border: 'none',
+                                        fontWeight: 800,
+                                        fontSize: '0.85rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <Layout size={16} /> Mise en page
+                                </button>
+                            </div>
+
                             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px', paddingRight: '8px' }} className="custom-scrollbar">
-                                <div>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Titre du Cours</label>
-                                    <input
-                                        className="input-field"
-                                        value={course.title}
-                                        onChange={(e) => updateCourseMetadata({ title: e.target.value })}
-                                        placeholder="Nommez votre cours..."
-                                        style={{ height: '54px', fontSize: '1.1rem' }}
-                                    />
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                                    <div>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Icône du Projet</label>
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(6, 1fr)',
-                                            gap: '8px',
-                                            padding: '12px',
-                                            background: 'rgba(0,0,0,0.2)',
-                                            borderRadius: '16px',
-                                            border: '1px solid var(--glass-border)'
-                                        }}>
-                                            {[
-                                                { id: 'Book', icon: Book },
-                                                { id: 'Calculator', icon: Calculator },
-                                                { id: 'Globe', icon: Globe },
-                                                { id: 'Palette', icon: Palette },
-                                                { id: 'Microscope', icon: Microscope },
-                                                { id: 'Languages', icon: Languages },
-                                                { id: 'FlaskConical', icon: FlaskConical },
-                                                { id: 'History', icon: History },
-                                                { id: 'Cpu', icon: Cpu },
-                                                { id: 'Music', icon: Music },
-                                                { id: 'Trophy', icon: Trophy },
-                                                { id: 'Gamepad2', icon: Gamepad2 },
-                                            ].map(item => (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => updateCourseMetadata({ icon: item.id })}
-                                                    style={{
-                                                        aspectRatio: '1',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        borderRadius: '8px',
-                                                        background: course.icon === item.id ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)',
-                                                        border: 'none',
-                                                        color: course.icon === item.id ? 'white' : 'var(--text-secondary)',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s'
-                                                    }}
-                                                    title={item.id}
-                                                >
-                                                    <item.icon size={18} />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Format d'affichage</label>
-                                        <select className="input-field" style={{ height: '54px' }} value={course.aspectRatio || '16/9'} onChange={(e) => updateCourseMetadata({ aspectRatio: e.target.value })}>
-                                            <option value="16/9">16:9 - Écran Large</option>
-                                            <option value="4/3">4:3 - Standard</option>
-                                            <option value="1/1">1:1 - Carré</option>
-                                            <option value="9/16">9:16 - Vertical</option>
-                                        </select>
-                                        <div style={{ marginTop: '12px' }}>
-                                            <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Ou Emoji Libre</label>
-                                            <input
-                                                className="input-field"
-                                                value={!['Book', 'Calculator', 'Globe', 'Palette', 'Microscope', 'Languages', 'FlaskConical', 'History', 'Cpu', 'Music', 'Trophy', 'Gamepad2'].includes(course.icon) ? course.icon : ''}
-                                                onChange={(e) => updateCourseMetadata({ icon: e.target.value })}
-                                                placeholder="Emoji (💡, 🚀...)"
-                                                style={{ height: '42px' }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                                    <div>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Niveau Scolaire</label>
-                                        <select className="input-field" style={{ height: '54px' }} value={course.level} onChange={(e) => updateCourseMetadata({ level: e.target.value })}>
-                                            {levels.length > 0 ? levels.map(l => <option key={l} value={l}>{l}</option>) : <option disabled>Chargement...</option>}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Matière</label>
-                                        <select className="input-field" style={{ height: '54px' }} value={course.subject} onChange={(e) => updateCourseMetadata({ subject: e.target.value })}>
-                                            {subjects.length > 0 ? subjects.map(s => <option key={s} value={s}>{s}</option>) : <option disabled>Chargement...</option>}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div style={{
-                                    padding: '16px',
-                                    background: 'rgba(123, 97, 255, 0.05)',
-                                    borderRadius: '16px',
-                                    border: '1px solid var(--glass-border)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Maximize2 size={18} color="white" />
-                                        </div>
+                                {activeSettingsTab === 'info' && (
+                                    <>
                                         <div>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>Plein Écran Automatique</div>
-                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Lancer le cours directement en plein écran</div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => updateCourseMetadata({ autoFullscreen: !course.autoFullscreen })}
-                                        style={{
-                                            width: '50px',
-                                            height: '26px',
-                                            borderRadius: '13px',
-                                            background: course.autoFullscreen ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.1)',
-                                            border: 'none',
-                                            padding: '3px',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.3s ease',
-                                            position: 'relative'
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: '20px',
-                                            height: '20px',
-                                            background: 'white',
-                                            borderRadius: '50%',
-                                            transform: course.autoFullscreen ? 'translateX(24px)' : 'translateX(0)',
-                                            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                                        }} />
-                                    </button>
-                                </div>
-
-                                <div>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Miniature du Cours (Thumbnail)</label>
-                                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                                        <div style={{ width: '100px', height: '60px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            {course.thumbnail ? (
-                                                <img src={course.thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            ) : (
-                                                <CourseIcon name={course.icon} size={24} />
-                                            )}
-                                        </div>
-                                        <div style={{ flex: 1, display: 'flex', gap: '8px' }}>
+                                            <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Titre du Cours</label>
                                             <input
                                                 className="input-field"
-                                                value={course.thumbnail || ''}
-                                                onChange={(e) => updateCourseMetadata({ thumbnail: e.target.value })}
-                                                placeholder="Lien de l'image..."
-                                                style={{ height: '42px', fontSize: '0.8rem' }}
+                                                value={course.title}
+                                                onChange={(e) => updateCourseMetadata({ title: e.target.value })}
+                                                placeholder="Nommez votre cours..."
+                                                style={{ height: '54px', fontSize: '1.1rem' }}
                                             />
-                                            <button
-                                                className="btn-secondary"
-                                                style={{ padding: '0 12px', height: '42px' }}
-                                                onClick={() => {
-                                                    const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
-                                                    input.onchange = async (e) => {
-                                                        const file = e.target.files[0];
-                                                        if (file) {
-                                                            const toastId = toast.loading('Upload miniature...');
-                                                            const url = await uploadAsset(file);
-                                                            if (url) {
-                                                                updateCourseMetadata({ thumbnail: url });
-                                                                toast.success('Miniature mise à jour !', { id: toastId });
-                                                            } else {
-                                                                toast.error('Erreur upload', { id: toastId });
-                                                            }
-                                                        }
-                                                    };
-                                                    input.click();
-                                                }}
-                                            >
-                                                <Upload size={16} />
-                                            </button>
                                         </div>
-                                    </div>
-                                </div>
 
-                                {/* SECTION LECTEUR (CUSTOMIZATION) */}
-                                <div style={{
-                                    borderTop: '1px solid var(--glass-border)',
-                                    paddingTop: '24px',
-                                    marginTop: '8px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '20px'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(72, 52, 212, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--noor-secondary)' }}>
-                                            <Layout size={18} />
-                                        </div>
-                                        <h3 style={{ fontSize: '0.9rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Interface du Lecteur</h3>
-                                    </div>
-
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hauteur Header (px)</label>
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                <input
-                                                    type="range"
-                                                    min="40"
-                                                    max="200"
-                                                    value={course.playerConfig?.headerHeight || 60}
-                                                    onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, headerHeight: parseInt(e.target.value) } })}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <input
-                                                    type="number"
-                                                    className="input-field"
-                                                    value={course.playerConfig?.headerHeight || 60}
-                                                    onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, headerHeight: parseInt(e.target.value) || 40 } })}
-                                                    style={{ width: '60px', padding: '8px', textAlign: 'center' }}
-                                                />
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Icône du Projet</label>
+                                                <div style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: 'repeat(6, 1fr)',
+                                                    gap: '8px',
+                                                    padding: '12px',
+                                                    background: 'rgba(0,0,0,0.2)',
+                                                    borderRadius: '16px',
+                                                    border: '1px solid var(--glass-border)'
+                                                }}>
+                                                    {[
+                                                        { id: 'Book', icon: Book },
+                                                        { id: 'Calculator', icon: Calculator },
+                                                        { id: 'Globe', icon: Globe },
+                                                        { id: 'Palette', icon: Palette },
+                                                        { id: 'Microscope', icon: Microscope },
+                                                        { id: 'Languages', icon: Languages },
+                                                        { id: 'FlaskConical', icon: FlaskConical },
+                                                        { id: 'History', icon: History },
+                                                        { id: 'Cpu', icon: Cpu },
+                                                        { id: 'Music', icon: Music },
+                                                        { id: 'Trophy', icon: Trophy },
+                                                        { id: 'Gamepad2', icon: Gamepad2 },
+                                                    ].map(item => (
+                                                        <button
+                                                            key={item.id}
+                                                            onClick={() => updateCourseMetadata({ icon: item.id })}
+                                                            style={{
+                                                                aspectRatio: '1',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                borderRadius: '8px',
+                                                                background: course.icon === item.id ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)',
+                                                                border: 'none',
+                                                                color: course.icon === item.id ? 'white' : 'var(--text-secondary)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            title={item.id}
+                                                        >
+                                                            <item.icon size={18} />
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hauteur Footer (px)</label>
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                <input
-                                                    type="range"
-                                                    min="40"
-                                                    max="200"
-                                                    value={course.playerConfig?.footerHeight || 60}
-                                                    onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, footerHeight: parseInt(e.target.value) } })}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <input
-                                                    type="number"
-                                                    className="input-field"
-                                                    value={course.playerConfig?.footerHeight || 60}
-                                                    onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, footerHeight: parseInt(e.target.value) || 40 } })}
-                                                    style={{ width: '60px', padding: '8px', textAlign: 'center' }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Afficher Header</span>
-                                                <input type="checkbox" checked={course.playerConfig?.showHeader ?? true} onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showHeader: e.target.checked } })} />
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Afficher Footer</span>
-                                                <input type="checkbox" checked={course.playerConfig?.showFooter ?? true} onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showFooter: e.target.checked } })} />
-                                            </div>
-
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Couleurs de barre</label>
-                                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                    <div style={{ flex: 1 }}>
-                                                        <label style={{ fontSize: '0.55rem', opacity: 0.6 }}>Header</label>
-                                                        <ColorPicker color={course.playerConfig?.headerBackground || 'rgba(18, 21, 45, 0.98)'} onChange={(c) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, headerBackground: c } })} />
-                                                    </div>
-                                                    <div style={{ flex: 1 }}>
-                                                        <label style={{ fontSize: '0.55rem', opacity: 0.6 }}>Footer</label>
-                                                        <ColorPicker color={course.playerConfig?.footerBackground || 'rgba(18, 21, 45, 0.98)'} onChange={(c) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, footerBackground: c } })} />
-                                                    </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Format d'affichage</label>
+                                                <select className="input-field" style={{ height: '54px' }} value={course.aspectRatio || '16/9'} onChange={(e) => updateCourseMetadata({ aspectRatio: e.target.value })}>
+                                                    <option value="16/9">16:9 - Écran Large</option>
+                                                    <option value="4/3">4:3 - Standard</option>
+                                                    <option value="1/1">1:1 - Carré</option>
+                                                    <option value="9/16">9:16 - Vertical</option>
+                                                </select>
+                                                <div style={{ marginTop: '12px' }}>
+                                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Ou Emoji Libre</label>
+                                                    <input
+                                                        className="input-field"
+                                                        value={!['Book', 'Calculator', 'Globe', 'Palette', 'Microscope', 'Languages', 'FlaskConical', 'History', 'Cpu', 'Music', 'Trophy', 'Gamepad2'].includes(course.icon) ? course.icon : ''}
+                                                        onChange={(e) => updateCourseMetadata({ icon: e.target.value })}
+                                                        placeholder="Emoji (💡, 🚀...)"
+                                                        style={{ height: '42px' }}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                                    <button
-                                        onClick={() => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showProgressBar: !course.playerConfig?.showProgressBar } })}
-                                        style={{ padding: '10px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 800, background: course.playerConfig?.showProgressBar ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
-                                    >
-                                        PROGRÈS
-                                    </button>
-                                    <button
-                                        onClick={() => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showInteractionScore: !course.playerConfig?.showInteractionScore } })}
-                                        style={{ padding: '10px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 800, background: course.playerConfig?.showInteractionScore ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
-                                    >
-                                        SCORE
-                                    </button>
-                                    <button
-                                        onClick={() => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showSlideCounter: !course.playerConfig?.showSlideCounter } })}
-                                        style={{ padding: '10px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 800, background: course.playerConfig?.showSlideCounter ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
-                                    >
-                                        COMPTEUR
-                                    </button>
-                                </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Niveau Scolaire</label>
+                                                <select className="input-field" style={{ height: '54px' }} value={course.level} onChange={(e) => updateCourseMetadata({ level: e.target.value })}>
+                                                    {levels.length > 0 ? levels.map(l => <option key={l} value={l}>{l}</option>) : <option disabled>Chargement...</option>}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Matière</label>
+                                                <select className="input-field" style={{ height: '54px' }} value={course.subject} onChange={(e) => updateCourseMetadata({ subject: e.target.value })}>
+                                                    {subjects.length > 0 ? subjects.map(s => <option key={s} value={s}>{s}</option>) : <option disabled>Chargement...</option>}
+                                                </select>
+                                            </div>
+                                        </div>
 
-                                <div>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Logo Personnalisé (URL)</label>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <input
-                                            className="input-field"
-                                            value={course.playerConfig?.logoUrl || ''}
-                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, logoUrl: e.target.value } })}
-                                            placeholder="Lien vers votre logo..."
-                                            style={{ height: '42px', fontSize: '0.8rem' }}
-                                        />
-                                    </div>
-                                </div>
+                                        <div style={{
+                                            padding: '16px',
+                                            background: 'rgba(123, 97, 255, 0.05)',
+                                            borderRadius: '16px',
+                                            border: '1px solid var(--glass-border)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <Maximize2 size={18} color="white" />
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>Plein Écran Automatique</div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Lancer le cours directement en plein écran</div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => updateCourseMetadata({ autoFullscreen: !course.autoFullscreen })}
+                                                style={{
+                                                    width: '50px',
+                                                    height: '26px',
+                                                    borderRadius: '13px',
+                                                    background: course.autoFullscreen ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.1)',
+                                                    border: 'none',
+                                                    padding: '3px',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.3s ease',
+                                                    position: 'relative'
+                                                }}
+                                            >
+                                                <div style={{
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    background: 'white',
+                                                    borderRadius: '50%',
+                                                    transform: course.autoFullscreen ? 'translateX(24px)' : 'translateX(0)',
+                                                    transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                                                }} />
+                                            </button>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Miniature du Cours (Thumbnail)</label>
+                                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                                <div style={{ width: '100px', height: '60px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    {course.thumbnail ? (
+                                                        <img src={course.thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    ) : (
+                                                        <CourseIcon name={course.icon} size={24} />
+                                                    )}
+                                                </div>
+                                                <div style={{ flex: 1, display: 'flex', gap: '8px' }}>
+                                                    <input
+                                                        className="input-field"
+                                                        value={course.thumbnail || ''}
+                                                        onChange={(e) => updateCourseMetadata({ thumbnail: e.target.value })}
+                                                        placeholder="Lien de l'image..."
+                                                        style={{ height: '42px', fontSize: '0.8rem' }}
+                                                    />
+                                                    <button
+                                                        className="btn-secondary"
+                                                        style={{ padding: '0 12px', height: '42px' }}
+                                                        onClick={() => {
+                                                            const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+                                                            input.onchange = async (e) => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    const toastId = toast.loading('Upload miniature...');
+                                                                    const url = await uploadAsset(file);
+                                                                    if (url) {
+                                                                        updateCourseMetadata({ thumbnail: url });
+                                                                        toast.success('Miniature mise à jour !', { id: toastId });
+                                                                    } else {
+                                                                        toast.error('Erreur upload', { id: toastId });
+                                                                    }
+                                                                }
+                                                            };
+                                                            input.click();
+                                                        }}
+                                                    >
+                                                        <Upload size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </>
+                                )}
+
+                                {activeSettingsTab === 'layout' && (
+                                    <>
+                                        {/* SECTION LECTEUR (CUSTOMIZATION) */}
+                                        <div style={{
+                                            borderTop: '1px solid var(--glass-border)',
+                                            paddingTop: '24px',
+                                            marginTop: '8px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '20px'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(72, 52, 212, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--noor-secondary)' }}>
+                                                    <Layout size={18} />
+                                                </div>
+                                                <h3 style={{ fontSize: '0.9rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Interface du Lecteur</h3>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hauteur Header (px)</label>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input
+                                                            type="range"
+                                                            min="40"
+                                                            max="200"
+                                                            value={course.playerConfig?.headerHeight || 60}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, headerHeight: parseInt(e.target.value) } })}
+                                                            style={{ flex: 1 }}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="input-field"
+                                                            value={course.playerConfig?.headerHeight || 60}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, headerHeight: parseInt(e.target.value) || 40 } })}
+                                                            style={{ width: '60px', padding: '8px', textAlign: 'center' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hauteur Footer (px)</label>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input
+                                                            type="range"
+                                                            min="40"
+                                                            max="200"
+                                                            value={course.playerConfig?.footerHeight || 60}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, footerHeight: parseInt(e.target.value) } })}
+                                                            style={{ flex: 1 }}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="input-field"
+                                                            value={course.playerConfig?.footerHeight || 60}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, footerHeight: parseInt(e.target.value) || 40 } })}
+                                                            style={{ width: '60px', padding: '8px', textAlign: 'center' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                                <div style={{ gridColumn: 'span 2' }}>
+                                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--noor-secondary)', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>Marges du Contenu (Padding)</label>
+                                                    <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Ajustez l'espace entre le contenu et les bords du lecteur.</p>
+                                                </div>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white', opacity: 0.8 }}>Haut (px)</label>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="200"
+                                                            value={course.playerConfig?.mainLayout?.paddingTop ?? 40}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingTop: parseInt(e.target.value) } } })}
+                                                            style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="input-field"
+                                                            value={course.playerConfig?.mainLayout?.paddingTop ?? 40}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingTop: parseInt(e.target.value) || 0 } } })}
+                                                            style={{ width: '50px', padding: '6px', textAlign: 'center', fontSize: '0.75rem' }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white', opacity: 0.8 }}>Bas (px)</label>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="200"
+                                                            value={course.playerConfig?.mainLayout?.paddingBottom ?? 40}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingBottom: parseInt(e.target.value) } } })}
+                                                            style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="input-field"
+                                                            value={course.playerConfig?.mainLayout?.paddingBottom ?? 40}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingBottom: parseInt(e.target.value) || 0 } } })}
+                                                            style={{ width: '50px', padding: '6px', textAlign: 'center', fontSize: '0.75rem' }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white', opacity: 0.8 }}>Gauche (px)</label>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="200"
+                                                            value={course.playerConfig?.mainLayout?.paddingLeft ?? 16}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingLeft: parseInt(e.target.value) } } })}
+                                                            style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="input-field"
+                                                            value={course.playerConfig?.mainLayout?.paddingLeft ?? 16}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingLeft: parseInt(e.target.value) || 0 } } })}
+                                                            style={{ width: '50px', padding: '6px', textAlign: 'center', fontSize: '0.75rem' }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white', opacity: 0.8 }}>Droite (px)</label>
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="200"
+                                                            value={course.playerConfig?.mainLayout?.paddingRight ?? 16}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingRight: parseInt(e.target.value) } } })}
+                                                            style={{ flex: 1, accentColor: 'var(--noor-secondary)' }}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            className="input-field"
+                                                            value={course.playerConfig?.mainLayout?.paddingRight ?? 16}
+                                                            onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, mainLayout: { ...(course.playerConfig?.mainLayout || {}), paddingRight: parseInt(e.target.value) || 0 } } })}
+                                                            style={{ width: '50px', padding: '6px', textAlign: 'center', fontSize: '0.75rem' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Afficher Header</span>
+                                                        <input type="checkbox" checked={course.playerConfig?.showHeader ?? true} onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showHeader: e.target.checked } })} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Afficher Footer</span>
+                                                        <input type="checkbox" checked={course.playerConfig?.showFooter ?? true} onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showFooter: e.target.checked } })} />
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                        <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Couleurs de barre</label>
+                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                            <div style={{ flex: 1 }}>
+                                                                <label style={{ fontSize: '0.55rem', opacity: 0.6 }}>Header</label>
+                                                                <ColorPicker color={course.playerConfig?.headerBackground || 'rgba(18, 21, 45, 0.98)'} onChange={(c) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, headerBackground: c } })} />
+                                                            </div>
+                                                            <div style={{ flex: 1 }}>
+                                                                <label style={{ fontSize: '0.55rem', opacity: 0.6 }}>Footer</label>
+                                                                <ColorPicker color={course.playerConfig?.footerBackground || 'rgba(18, 21, 45, 0.98)'} onChange={(c) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, footerBackground: c } })} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                                                <button
+                                                    onClick={() => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showProgressBar: !course.playerConfig?.showProgressBar } })}
+                                                    style={{ padding: '10px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 800, background: course.playerConfig?.showProgressBar ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                >
+                                                    PROGRÈS
+                                                </button>
+                                                <button
+                                                    onClick={() => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showInteractionScore: !course.playerConfig?.showInteractionScore } })}
+                                                    style={{ padding: '10px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 800, background: course.playerConfig?.showInteractionScore ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                >
+                                                    SCORE
+                                                </button>
+                                                <button
+                                                    onClick={() => updateCourseMetadata({ playerConfig: { ...course.playerConfig, showSlideCounter: !course.playerConfig?.showSlideCounter } })}
+                                                    style={{ padding: '10px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 800, background: course.playerConfig?.showSlideCounter ? 'var(--noor-secondary)' : 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                >
+                                                    COMPTEUR
+                                                </button>
+                                            </div>
+
+                                            <div>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Logo Personnalisé (URL)</label>
+                                                <div style={{ display: 'flex', gap: '10px' }}>
+                                                    <input
+                                                        className="input-field"
+                                                        value={course.playerConfig?.logoUrl || ''}
+                                                        onChange={(e) => updateCourseMetadata({ playerConfig: { ...course.playerConfig, logoUrl: e.target.value } })}
+                                                        placeholder="Lien vers votre logo..."
+                                                        style={{ height: '42px', fontSize: '0.8rem', flex: 1 }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             <button className="btn-primary" onClick={() => setShowCourseSettings(false)} style={{ height: '60px', borderRadius: '18px', fontSize: '1.1rem', marginTop: '12px', justifyContent: 'center' }}>

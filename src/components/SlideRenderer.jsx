@@ -207,7 +207,7 @@ export const ComponentModal = ({ isOpen, onClose, onSelect }) => {
     );
 };
 
-export const ComponentRenderer = ({ component, isPreview, columns, onNavigate }) => {
+export const ComponentRenderer = ({ component, isPreview, columns, onNavigate, alignment }) => {
     const [selectedOption, setSelectedOption] = useState(null);
     const [isAnswered, setIsAnswered] = useState(false);
     const [userAnswers, setUserAnswers] = useState({});
@@ -330,7 +330,7 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
         switch (component.type) {
             case 'ANIMATED_LOGO':
                 return (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: component.style?.justifyContent || 'center', padding: '0 5px', overflow: 'hidden' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: component.style?.justifyContent || (alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start'), padding: '0 5px', overflow: 'hidden' }}>
                         <AnimatedLogo
                             size={component.size || 40}
                             style={{ maxHeight: '100%', maxWidth: '100%', width: 'auto', objectFit: 'contain' }}
@@ -351,7 +351,7 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                         height: '100%',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: style.textAlign === 'center' ? 'center' : style.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                        justifyContent: style.textAlign === 'center' || (alignment === 'center' && !style.textAlign) ? 'center' : style.textAlign === 'right' || (alignment === 'right' && !style.textAlign) ? 'flex-end' : 'flex-start',
                         lineHeight: '1.2',
                         wordBreak: 'break-word',
                         backgroundColor: style.backgroundColor || 'transparent',
@@ -436,7 +436,7 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                 const style = component.style || {};
                 const hasCustomStyle = style.fontFamily || style.color;
                 return (
-                    <div style={{ textAlign: style.textAlign || 'center', padding: '10px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ textAlign: style.textAlign || alignment || 'center', padding: '10px', width: '100%', boxSizing: 'border-box' }}>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
                             {component.image && (
                                 <img src={component.image} style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '20px', marginBottom: '24px' }} alt="" />
@@ -487,11 +487,25 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                 let Icon = null;
                 let finalAction = () => { };
 
+                // UI configuration (always needed for display)
+                if (action === 'PREVIOUS') {
+                    defaultLabel = 'Précédent';
+                    Icon = ChevronLeft;
+                } else if (action === 'NEXT') {
+                    defaultLabel = 'Suivant';
+                    Icon = ChevronRight;
+                } else if (action === 'START') {
+                    defaultLabel = 'Début';
+                    Icon = ArrowLeft;
+                } else if (action === 'END') {
+                    defaultLabel = 'Fin';
+                    Icon = ArrowRight;
+                }
+
+                // Action logic (only if preview or editor-preview)
                 if (isPreview) {
                     if (action === 'PREVIOUS') {
                         isDisabled = activeSlideIndex === 0;
-                        defaultLabel = 'Précédent';
-                        Icon = ChevronLeft;
                         finalAction = () => {
                             if (activeSlideIndex > 0) {
                                 if (onNavigate) onNavigate(activeSlideIndex - 1);
@@ -500,8 +514,6 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                         };
                     } else if (action === 'NEXT') {
                         isDisabled = activeSlideIndex === totalSlides - 1;
-                        defaultLabel = 'Suivant';
-                        Icon = ChevronRight;
                         finalAction = () => {
                             if (activeSlideIndex < totalSlides - 1) {
                                 if (onNavigate) onNavigate(activeSlideIndex + 1);
@@ -510,16 +522,12 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                         };
                     } else if (action === 'START') {
                         isDisabled = activeSlideIndex === 0;
-                        defaultLabel = 'Début';
-                        Icon = ArrowLeft;
                         finalAction = () => {
                             if (onNavigate) onNavigate(0);
                             else setActiveSlideIndex(0);
                         };
                     } else if (action === 'END') {
                         isDisabled = activeSlideIndex === totalSlides - 1;
-                        defaultLabel = 'Fin';
-                        Icon = ArrowRight;
                         finalAction = () => {
                             if (onNavigate) onNavigate(totalSlides - 1);
                             else setActiveSlideIndex(totalSlides - 1);
@@ -575,7 +583,7 @@ export const ComponentRenderer = ({ component, isPreview, columns, onNavigate })
                             fontSize: style.fontSize ? `${style.fontSize}px` : '1.1rem',
                             lineHeight: '1.7',
                             color: style.color || 'rgba(255,255,255,0.9)',
-                            textAlign: style.textAlign || 'left',
+                            textAlign: style.textAlign || alignment || (alignment ? alignment : 'left'),
                             width: '100%',
                             wordBreak: 'break-word',
                             overflowWrap: 'anywhere',
@@ -1992,8 +2000,8 @@ const BlockItem = ({ block, isPreview, blockIndex, isGlobal = false, onNavigate 
         background: bStyle.background || 'rgba(255,255,255,0.01)',
         border: bStyle.showBorder ? `1px solid ${bStyle.borderColor || 'rgba(123, 97, 255, 0.3)'}` : 'none',
         borderRadius: bStyle.borderRadius || '24px',
-        padding: typeof bStyle.padding === 'number' ? `${bStyle.padding}px` : (bStyle.padding || (isGlobal ? '0' : '24px')),
-        marginTop: typeof bStyle.margin === 'number' ? `${bStyle.margin}px` : (isGlobal ? '0' : '16px'),
+        padding: typeof bStyle.padding === 'number' ? `${bStyle.padding}px` : (bStyle.padding || (isGlobal || isPreview ? '0' : '24px')),
+        marginTop: typeof bStyle.margin === 'number' ? `${bStyle.margin}px` : (isGlobal || isPreview ? '0' : '16px'),
         overflow: 'visible',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
@@ -2170,28 +2178,8 @@ const SlideRenderer = ({ slide, isPreview = false, style: customStyle = {}, isGl
 
     if (!slide) return null;
 
-    // Backward compatibility: build blocks from slide props if blocks is missing
-    const blocks = slide.blocks || [
-        {
-            id: 'legacy-block',
-            type: slide.type,
-            title: slide.title,
-            description: slide.description,
-            image: slide.image,
-            url: slide.url,
-            options: slide.options,
-            instruction: slide.instruction,
-            question: slide.question,
-            correctAnswer: slide.correctAnswer,
-            content: slide.content,
-            pairs: slide.pairs,
-            items: slide.items,
-            categories: slide.categories,
-            mainImage: slide.mainImage,
-            labels: slide.labels,
-            style: { columns: 12, background: 'transparent' }
-        }
-    ];
+    // Use the blocks that have already been migrated by verifyCourseIntegrity in the store
+    const blocks = slide.blocks || [];
 
     return (
         <div

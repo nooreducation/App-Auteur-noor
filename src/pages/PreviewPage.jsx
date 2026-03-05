@@ -18,7 +18,8 @@ import {
     Menu,
     Activity,
     CheckCircle2,
-    Trophy
+    Trophy,
+    AlertTriangle
 } from 'lucide-react';
 import useCourseStore from '../stores/courseStore';
 import SlideRenderer, { ComponentRenderer } from '../components/SlideRenderer';
@@ -35,7 +36,7 @@ const DEVICE_PRESETS = [
 const PreviewPage = ({ isPlayer = false }) => {
     const { courseId, slideIndex } = useParams();
     const navigate = useNavigate();
-    const { course, loadCourseById, setActiveSlideIndex } = useCourseStore();
+    const { course, loadCourseById, setActiveSlideIndex, lastError } = useCourseStore();
 
     const [currentSlideIndex, setCurrentSlideIndex] = useState(parseInt(slideIndex) || 0);
     const [selectedDevice, setSelectedDevice] = useState('desktop');
@@ -150,7 +151,10 @@ const PreviewPage = ({ isPlayer = false }) => {
         }
     }, [selectedDevice, customWidth, customHeight]);
 
-    if (!course) {
+    // Check for correct course loading
+    const isActuallyLoading = !course || (courseId && course.id !== courseId);
+
+    if (isActuallyLoading) {
         return (
             <div style={{
                 width: '100%',
@@ -158,17 +162,64 @@ const PreviewPage = ({ isPlayer = false }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'var(--bg-primary)'
+                background: 'var(--bg-primary)',
+                color: 'white'
             }}>
                 <div style={{ textAlign: 'center' }}>
-                    <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
-                    <p style={{ color: 'var(--text-muted)' }}>Chargement du cours...</p>
+                    {lastError ? (
+                        <>
+                            <AlertTriangle size={48} color="var(--noor-accent)" style={{ marginBottom: '20px' }} />
+                            <p style={{ color: 'var(--noor-accent)', marginBottom: '24px' }}>Erreur: {lastError}</p>
+                            <button className="btn-primary" onClick={() => window.location.reload()}>Réessayer</button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
+                            <p style={{ color: 'var(--text-muted)' }}>Chargement du cours...</p>
+                        </>
+                    )}
                 </div>
             </div>
         );
     }
 
     const currentSlide = course.slides?.[currentSlideIndex];
+
+    if (!currentSlide) {
+        return (
+            <div style={{
+                width: '100%',
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#0a0c1a',
+                color: 'white'
+            }}>
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <AlertTriangle size={64} color="var(--noor-secondary)" style={{ marginBottom: '24px' }} />
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '12px' }}>Oups, cette page n'existe pas</h2>
+                    <p style={{ opacity: 0.6, marginBottom: '32px', maxWidth: '400px', margin: '0 auto 32px' }}>
+                        La diapositive demandée est introuvable. La structure du cours a peut-être été modifiée.
+                    </p>
+                    <button
+                        className="btn-primary"
+                        onClick={() => goToSlide(0)}
+                        style={{ padding: '12px 32px', borderRadius: '12px', fontWeight: 800 }}
+                    >
+                        Retour au début
+                    </button>
+                    <button
+                        className="btn-secondary"
+                        onClick={() => navigate('/editor')}
+                        style={{ marginLeft: '12px', padding: '12px 32px', borderRadius: '12px', fontWeight: 800 }}
+                    >
+                        Ouvrir l'éditeur
+                    </button>
+                </div>
+            </div>
+        );
+    }
     const dimensions = isPlayer ? { width: '100%', height: '100%' } : getDeviceDimensions();
     const scale = isPlayer ? 1 : zoom / 100;
 
@@ -278,6 +329,7 @@ const PreviewPage = ({ isPlayer = false }) => {
                                         component={element}
                                         isPreview={true}
                                         onNavigate={goToSlide}
+                                        alignment={cell.alignment}
                                     />
                                 ))
                             }
@@ -367,6 +419,7 @@ const PreviewPage = ({ isPlayer = false }) => {
                                         component={element}
                                         isPreview={true}
                                         onNavigate={goToSlide}
+                                        alignment={cell.alignment}
                                     />
                                 ))
                             }
@@ -393,7 +446,16 @@ const PreviewPage = ({ isPlayer = false }) => {
                     <PlayerHeader />
 
                     {/* Zone de Contenu */}
-                    <main className="responsive-player-main" style={{ flex: 1, overflow: 'auto', background: 'var(--bg-tertiary)', position: 'relative' }}>
+                    <main className="responsive-player-main" style={{
+                        flex: 1,
+                        overflow: 'auto',
+                        background: 'var(--bg-tertiary)',
+                        position: 'relative',
+                        paddingTop: `${playerConfig.mainLayout?.paddingTop ?? 40}px`,
+                        paddingBottom: `${playerConfig.mainLayout?.paddingBottom ?? 40}px`,
+                        paddingLeft: `${playerConfig.mainLayout?.paddingLeft ?? 16}px`,
+                        paddingRight: `${playerConfig.mainLayout?.paddingRight ?? 16}px`
+                    }}>
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={currentSlideIndex}
@@ -403,7 +465,7 @@ const PreviewPage = ({ isPlayer = false }) => {
                                 transition={{ duration: 0.3 }}
                                 style={{ width: '100%', minHeight: '100%' }}
                             >
-                                <div className="player-card-container">
+                                <div style={{ width: '100%', minHeight: '100%' }}>
                                     {currentSlide && <SlideRenderer slide={currentSlide} isPreview={true} onNavigate={goToSlide} />}
                                 </div>
                             </motion.div>
@@ -634,10 +696,18 @@ const PreviewPage = ({ isPlayer = false }) => {
                                 {/* INTEGRATED PLAYER UI INSIDE SIMULATOR */}
                                 <PlayerHeader isEmbedded={true} />
 
-                                <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+                                <div style={{
+                                    flex: 1,
+                                    overflow: 'auto',
+                                    position: 'relative',
+                                    paddingTop: `${playerConfig.mainLayout?.paddingTop ?? 40}px`,
+                                    paddingBottom: `${playerConfig.mainLayout?.paddingBottom ?? 40}px`,
+                                    paddingLeft: `${playerConfig.mainLayout?.paddingLeft ?? 16}px`,
+                                    paddingRight: `${playerConfig.mainLayout?.paddingRight ?? 16}px`
+                                }}>
                                     <AnimatePresence mode="wait">
                                         <motion.div key={currentSlideIndex} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ width: '100%', minHeight: '100%', position: 'relative' }}>
-                                            <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', minHeight: '100%' }}>
+                                            <div style={{ width: '100%', minHeight: '100%' }}>
                                                 {currentSlide && <SlideRenderer slide={currentSlide} isPreview={true} onNavigate={goToSlide} />}
                                             </div>
                                         </motion.div>

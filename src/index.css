@@ -2,10 +2,14 @@
 
 :root {
   /* Noor Education Palette - Official Brand Colors */
-  --noor-primary: #4B4B9D;   /* Purple identity */
-  --noor-secondary: #0077B6; /* Blue secondary */
-  --noor-accent: #E91E63;    /* Pink highlight */
-  --noor-warning: #FFC107;   /* Yellow curiosity */
+  --noor-primary: #4B4B9D;
+  /* Purple identity */
+  --noor-secondary: #0077B6;
+  /* Blue secondary */
+  --noor-accent: #E91E63;
+  /* Pink highlight */
+  --noor-warning: #FFC107;
+  /* Yellow curiosity */
   --noor-success: #2ed573;
   --noor-purple: #4B4B9D;
 
@@ -47,7 +51,11 @@
   font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
 }
 
-h1, h2, h3, h4, .fredoka {
+h1,
+h2,
+h3,
+h4,
+.fredoka {
   font-family: 'Fredoka', sans-serif;
 }
 
@@ -612,11 +620,8 @@ svg {
 }
 
 .player-card-container {
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
   min-height: 100%;
-  background: var(--bg-tertiary);
   border-radius: 24px;
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-lg);

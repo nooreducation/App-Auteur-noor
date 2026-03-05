@@ -127,17 +127,99 @@ const verifyCourseIntegrity = (courseData) => {
         };
     }
 
-    // Si le header n'existe pas ou s'il est à l'ancienne version (pas de blocs ou blocs vides)
-    if (!data.header || !data.header.blocks || data.header.blocks.length === 0) {
-        data.header = DEFAULT_HEADER;
+    if (!data.playerConfig.mainLayout) {
+        data.playerConfig.mainLayout = {
+            paddingX: 16,
+            paddingY: 40,
+            paddingTop: 40,
+            paddingBottom: 40,
+            paddingLeft: 16,
+            paddingRight: 16
+        };
+    } else {
+        // Migration to specific paddings
+        if (data.playerConfig.mainLayout.paddingTop === undefined) data.playerConfig.mainLayout.paddingTop = data.playerConfig.mainLayout.paddingY ?? 40;
+        if (data.playerConfig.mainLayout.paddingBottom === undefined) data.playerConfig.mainLayout.paddingBottom = data.playerConfig.mainLayout.paddingY ?? 40;
+        if (data.playerConfig.mainLayout.paddingLeft === undefined) data.playerConfig.mainLayout.paddingLeft = data.playerConfig.mainLayout.paddingX ?? 16;
+        if (data.playerConfig.mainLayout.paddingRight === undefined) data.playerConfig.mainLayout.paddingRight = data.playerConfig.mainLayout.paddingX ?? 16;
     }
 
-    if (!data.footer) {
-        data.footer = DEFAULT_FOOTER;
+    // Si le header n'existe pas ou s'il est \u00e0 l'ancienne version (pas de blocs ou blocs vides)
+    if (!data.header || !Array.isArray(data.header.blocks) || data.header.blocks.length === 0) {
+        data.header = JSON.parse(JSON.stringify(DEFAULT_HEADER));
+    } else {
+        // Migration: Ensure all header elements have a cellId
+        data.header.blocks.forEach(block => {
+            if (Array.isArray(block.elements)) {
+                block.elements.forEach(el => {
+                    if (!el.cellId) el.cellId = 'h-cell-2'; // Default to center
+                });
+            }
+        });
     }
 
-    if (!data.slides || data.slides.length === 0) {
+    if (!data.footer || !Array.isArray(data.footer.blocks) || data.footer.blocks.length === 0) {
+        data.footer = JSON.parse(JSON.stringify(DEFAULT_FOOTER));
+    } else {
+        // Migration: Ensure all footer elements have a cellId
+        data.footer.blocks.forEach(block => {
+            if (Array.isArray(block.elements)) {
+                block.elements.forEach(el => {
+                    if (!el.cellId) el.cellId = 'f-cell-2'; // Default to center
+                });
+            }
+        });
+    }
+
+    if (!data.slides || !Array.isArray(data.slides) || data.slides.length === 0) {
         data.slides = [{ id: 'slide-0', title: 'Bienvenue !', blocks: [{ id: 'block-0', type: 'SPLASH', title: 'Bienvenue !', description: 'Introduction de votre nouveau module interactif.' }] }];
+    } else {
+        // Migration for slides
+        data.slides = data.slides.map((slide, sIdx) => {
+            const migratedSlide = { ...slide };
+
+            // 1. If slide has components instead of blocks
+            if (migratedSlide.components && (!migratedSlide.blocks || migratedSlide.blocks.length === 0)) {
+                const firstType = migratedSlide.components[0]?.type || 'PARAGRAPH';
+                migratedSlide.blocks = [{
+                    id: 'migrated-block-' + Date.now() + '-' + sIdx,
+                    type: firstType,
+                    title: 'Contenu principal',
+                    style: { columns: 12, minHeight: 'auto', background: 'transparent' },
+                    elements: migratedSlide.components
+                }];
+                delete migratedSlide.components;
+            }
+
+            // 2. Ensure blocks format
+            if (!Array.isArray(migratedSlide.blocks)) {
+                migratedSlide.blocks = [];
+            } else {
+                migratedSlide.blocks = migratedSlide.blocks.map((block, bIdx) => {
+                    const migratedBlock = { ...block };
+                    // If block has components instead of elements
+                    if (migratedBlock.components && (!migratedBlock.elements || migratedBlock.elements.length === 0)) {
+                        migratedBlock.elements = migratedBlock.components;
+                        delete migratedBlock.components;
+                    }
+                    if (!migratedBlock.elements) {
+                        migratedBlock.elements = [];
+                    }
+                    if (!migratedBlock.id) {
+                        migratedBlock.id = 'block-' + Date.now() + '-' + sIdx + '-' + bIdx;
+                    }
+                    // Guarantee elements have IDs
+                    if (Array.isArray(migratedBlock.elements)) {
+                        migratedBlock.elements.forEach((el, eIdx) => {
+                            if (!el.id) el.id = 'comp-' + Date.now() + '-' + sIdx + '-' + bIdx + '-' + eIdx;
+                        });
+                    }
+                    return migratedBlock;
+                });
+            }
+
+            return migratedSlide;
+        });
     }
     return data;
 };
